@@ -31,7 +31,7 @@ class CarInterface(CarInterfaceBase):
       ret.enableBsm = 0x228 in fingerprint[0]
 
     #ret.dashcamOnly = candidate in PREGLOBAL_CARS
-    #CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
+    CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
 
     ret.steerLimitTimer = 0.4
 
@@ -100,11 +100,11 @@ class CarInterface(CarInterfaceBase):
       ret.mass = 1568 + STD_CARGO_KG
       ret.wheelbase = 2.67
       ret.centerToFront = ret.wheelbase * 0.5
-      ret.steerRatio = 20           # learned, 14 stock
+      ret.steerRatio = 14           # learned, 14 stock
       ret.steerActuatorDelay = 0.1
-      ret.lateralTuning.pid.kf = 0.000039
-      ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0., 10., 20.], [0., 10., 20.]]
-      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.01, 0.05, 0.2], [0.003, 0.018, 0.025]]
+      #ret.lateralTuning.pid.kf = 0.000039
+      #ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0., 10., 20.], [0., 10., 20.]]
+      #ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.01, 0.05, 0.2], [0.003, 0.018, 0.025]]
 
     if candidate == CAR.WRX_PREGLOBAL:
       ret.safetyConfigs[0].safetyParam = 1  # WRX has reversed driver torque signal
