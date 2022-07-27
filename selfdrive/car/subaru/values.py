@@ -232,7 +232,7 @@ FW_VERSIONS = {
   },
   CAR.LEGACY_PREGLOBAL: {
     (Ecu.esp, 0x7b0, None): [
-      b'k\x00\x00'
+      b'k\x00\x00',
     ],
     (Ecu.eps, 0x746, None): [
       b'[\x00\x00\x00',
