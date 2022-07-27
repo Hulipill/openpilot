@@ -146,7 +146,7 @@ FW_VERSIONS = {
       b'\x00\x000\x000',
     ],
     (Ecu.engine, 0x7e0, None): [
-      b'\x000\x000,
+      b'\x000\x000',
     ],
   },
   CAR.FORESTER: {
@@ -215,7 +215,7 @@ FW_VERSIONS = {
   CAR.LEGACY: {
     # Ecu, addr, subaddr: ROM ID
     (Ecu.esp, 0x7b0, None): [
-      b'\x00,
+      b'\x00',
     ],
     (Ecu.eps, 0x746, None): [
       b'\x00',
