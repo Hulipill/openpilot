@@ -262,7 +262,7 @@ FW_VERSIONS = {
       b'\x00\x00',
     ],
     (Ecu.engine, 0x7e0, None): [
-      b'\x00,
+      b'\x00',
     ],
     (Ecu.transmission, 0x7e1, None): [
       b'\x00\x00',
