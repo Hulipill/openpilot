@@ -83,7 +83,7 @@ CAR_INFO: Dict[str, Union[SubaruCarInfo, List[SubaruCarInfo]]] = {
 FW_VERSIONS = {
   CAR.ASCENT: {
     (Ecu.esp, 0x7b0, None): [
-      b'\x00 \x00\x00\x00',
+      b'\x0000\x00\x00\x00',
     ],
     (Ecu.eps, 0x746, None): [
       b'\x00\x00\x00\x00',
