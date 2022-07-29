@@ -1,3 +1,8 @@
+2022-07-28
+==========
+* Lateral torque controller enabled for 2018-2019 Outbacks and 2017-2018 Forester models.
+* Tune values much smoother than the old PID controller
+* 3071 Torque not good, reverted to 2047.
 2022-07-05
 ==========
 * Initial lateral torque control support for all subaru-community supported models / @martinl
