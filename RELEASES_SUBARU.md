@@ -1,3 +1,12 @@
+2022-09-07
+==========
+* New tune values for the lateral torque controller, derived from many drives.
+* LAT_ACCEL_FACTOR is now 2.7835
+* FRICTION is now 0.086
+* 0.8.15 based still, this branch will soon be deprecated/unsupported once I release the 0.8.16 update version.
+* Follow any future branches/updates in the #subaru channel on Discord https://discord.comma.ai
+* Report any issues or comments to me on Discord @ Hulipill#9203
+
 2022-07-28
 ==========
 * Lateral torque controller enabled for 2018-2019 Outbacks and 2017-2018 Forester models.
