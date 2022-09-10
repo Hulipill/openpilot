@@ -1,3 +1,10 @@
+2022-09-10
+==========
+* Restore ret.steerRatio to 20
+* Report any issues or comments to me on Discord @ Hulipill#9203
+* Stay up to date in the #subaru channel on Discord https://discord.comma.ai
+* 0.8.17 version coming soon
+
 2022-09-07
 ==========
 * New tune values for the lateral torque controller, derived from many drives.
