@@ -100,7 +100,7 @@ class CarInterface(CarInterfaceBase):
       ret.mass = 1568 + STD_CARGO_KG
       ret.wheelbase = 2.67
       ret.centerToFront = ret.wheelbase * 0.5
-      ret.steerRatio = 14           # learned, 14 stock
+      ret.steerRatio = 20           # learned, 14 stock
       ret.steerActuatorDelay = 0.1
       #ret.lateralTuning.pid.kf = 0.000039
       #ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0., 10., 20.], [0., 10., 20.]]
