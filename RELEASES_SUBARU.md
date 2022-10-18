@@ -1,3 +1,9 @@
+2022-10-17
+==========
+* Initial release with 0.8.17
+  * Lateral torque controller is self tuning now
+
+
 2022-10-15
 ==========
 * FPv2 updates
