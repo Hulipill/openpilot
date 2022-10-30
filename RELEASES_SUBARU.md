@@ -1,7 +1,7 @@
-2022-10-29
+2022-10-29-1
 ==========
-* Testing 2247 torque up from 2047
-  * Keep hands on steering wheel! LKAS fault may happen.
+* Misc update
+  * Misc update
 
 2022-10-17
 ==========
