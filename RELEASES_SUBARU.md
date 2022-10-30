@@ -1,8 +1,12 @@
+2022-10-29
+==========
+* Testing 2247 torque up from 2047
+  * Keep hands on steering wheel! LKAS fault may happen.
+
 2022-10-17
 ==========
 * Initial release with 0.8.17
   * Lateral torque controller is self tuning now
-
 
 2022-10-15
 ==========
