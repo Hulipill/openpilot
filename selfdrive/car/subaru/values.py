@@ -29,7 +29,7 @@ class CarControllerParams:
     elif CP.carFingerprint == CAR.IMPREZA_2020:
       self.STEER_MAX = 1439
     else:
-      self.STEER_MAX = 2247
+      self.STEER_MAX = 2047
 
 
 class CAR:
