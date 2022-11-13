@@ -1,3 +1,11 @@
+2022-11-12
+==========
+* Live self tuning lateral torque controller enabled
+  * Tested on 2018-2019 Pre-Global Outback
+  * Lat Accel Filtered/Factor: 2.413216, Lat Accel Measured/Raw: 2.301357
+  * Friction: 0.110728
+  * Values will change live and self tune as you drive.
+
 2022-10-15
 ==========
 * FPv2 updates
