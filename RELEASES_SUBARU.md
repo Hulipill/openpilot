@@ -1,3 +1,7 @@
+2022-11-12-2
+==========
+* Less strict torqued self tuning values (12/16/22)
+
 2022-11-12
 ==========
 * Live self tuning lateral torque controller enabled
