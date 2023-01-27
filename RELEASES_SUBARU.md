@@ -1,3 +1,7 @@
+2023-01-27
+==========
+* LAT CONTROLLER for 18/19 Legacy on
+
 2022-11-12-2
 ==========
 * Less strict torqued self tuning values (12/16/22)
