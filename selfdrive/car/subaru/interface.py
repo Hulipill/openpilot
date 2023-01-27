@@ -128,10 +128,6 @@ class CarInterface(CarInterfaceBase):
       ret.centerToFront = ret.wheelbase * 0.5
       ret.steerRatio = 12.5   # 14.5 stock
       ret.steerActuatorDelay = 0.15
-      ret.lateralTuning.init('pid')
-      ret.lateralTuning.pid.kf = 0.00005
-      ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0., 20.], [0., 20.]]
-      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.1, 0.2], [0.01, 0.02]]
 
     elif candidate == CAR.LEVORG_PREGLOBAL:
       ret.safetyConfigs[0].safetyParam = 1  # Levorg has reversed driver torque signal
