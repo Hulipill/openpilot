@@ -1,3 +1,7 @@
+2023-02-10
+==========
+* Update FW values.py
+
 2023-01-27
 ==========
 * LAT CONTROLLER for 18/19 Legacy on
