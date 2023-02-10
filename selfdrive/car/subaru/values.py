@@ -245,11 +245,13 @@ FW_VERSIONS = {
       b'\xa2 !`\000',
       b'\xf1\x00\xb2\x06\x04',
       b'\xa2  `\x00',
+      b'\xa2 !3\x00',
     ],
     (Ecu.eps, 0x746, None): [
       b'\x9a\xc0\x00\x00',
       b'\n\xc0\004\000',
       b'\x9a\xc0\x04\x00',
+      b'\n\xc0\x04\x01',
     ],
     (Ecu.fwdCamera, 0x787, None): [
       b'\000\000eb\037@ \"',
@@ -257,6 +259,8 @@ FW_VERSIONS = {
       b'\x00\x00eb\x00\x00\x00\x00',
       b'\x00\x00eq\x1f@ "',
       b'\x00\x00eq\x00\x00\x00\x00',
+      b'\x00\x00e\x8f\x00\x00\x00\x00',
+      b'\x00\x00e\xa4\x00\x00\x00\x00',
     ],
     (Ecu.engine, 0x7e0, None): [
       b'\xca!ap\a',
@@ -267,6 +271,8 @@ FW_VERSIONS = {
       b'\xca!a0\x07',
       b'\xca!f@\x07',
       b'\xca!fp\x07',
+      b'\xf3"f@\x07',
+      b'\xe6!`@\x07',
     ],
     (Ecu.transmission, 0x7e1, None): [
       b'\xe6\xf5\004\000\000',
@@ -276,6 +282,8 @@ FW_VERSIONS = {
       b'\xf1\x00\xa4\x10@',
       b'\xf1\x00\xd7\x10@',
       b'\xe6\xf5D0\x00',
+      b'\xe9\xf6F0\x00',
+      b'\xe9\xf5\x02\x00\x00',
     ],
   },
   CAR.CROSSTREK_2020H: {
@@ -339,18 +347,23 @@ FW_VERSIONS = {
   CAR.FORESTER_2020H: {
     (Ecu.abs, 0x7b0, None): [
       b'\xa3 \x19T\x00',
+      b'\xa3 !x\x00',
     ],
     (Ecu.eps, 0x746, None): [
       b'\x8d\xc2\x00\x00',
+      b'-\xc0%0',
     ],
     (Ecu.fwdCamera, 0x787, None): [
       b'\x00\x00eY\x1f@ !',
+      b'\x04!\x01\x1eD\x07!\x00\x04,'
     ],
     (Ecu.engine, 0x7e0, None): [
       b'\xd2\xa1`r\x07',
+      b'\xd5"a0\x07',
     ],
     (Ecu.transmission, 0x7e1, None): [
       b'\x1b\xa7@a\x00',
+      b'\x1d\x86B0\x00',
     ],
   },
   CAR.FORESTER_PREGLOBAL: {
@@ -422,6 +435,7 @@ FW_VERSIONS = {
     (Ecu.abs, 0x7b0, None): [
       b'\x8b\x97D\x00',
       b'\x8b\x9aD\x00',
+      b'\x9b\x97D\x00',
     ],
     (Ecu.eps, 0x746, None): [
       b'{\xb0\x00\x00',
@@ -429,17 +443,20 @@ FW_VERSIONS = {
     (Ecu.fwdCamera, 0x787, None): [
       b'\x00\x00df\x1f@ \n',
       b'\x00\x00df\x00\x00\x00\x00',
+      b'\x00\x00d\xfe\x1f@ \x15',
     ],
     (Ecu.engine, 0x7e0, None): [
       b'\xb5\"@p\a',
       b'\xb5"@P\x07',
       b'\xb5+@q\x07',
+      b'\xc4"@0\x07',
     ],
     (Ecu.transmission, 0x7e1, None): [
       b'\xbc\xf2\x00\x81\x00',
       b'\xf1\x00\xa4\x10@',
       b'\xbc\xf2\x00\x80\x00',
       b'\xbc\xfb\xc0`\x00',
+      b'\xbb\xf2\x00`\x00',
     ],
   },
   CAR.LEVORG_PREGLOBAL: {
@@ -447,18 +464,23 @@ FW_VERSIONS = {
      # Ecu, addr, subaddr: ROM ID
      (Ecu.abs, 0x7b0, None): [
        b'j\x9c\x92\002',
+       b'\x9a\x95\x92\x00',
      ],
      (Ecu.eps, 0x746, None): [
        b'Z\xb0\000\000',
+       b'z\xb0\x00\x00',
      ],
      (Ecu.fwdCamera, 0x787, None): [
        b'\000\000c\xd3\000\000\000\000',
+       b'\x00\x00eO\x1f@ %',
      ],
      (Ecu.engine, 0x7e0, None): [
        b'\xf1\x82\xa6\000\xa1t\a',
+       b'\xcdi\xa00\x07',
      ],
      (Ecu.transmission, 0x7e1, None): [
        b'\xcb\xd9\000p\000',
+       b'\xce\xed\xf0`\x00',
      ],
   },
   CAR.OUTBACK_PREGLOBAL: {
@@ -491,6 +513,7 @@ FW_VERSIONS = {
       b'\000\000c\x90\037@\020\016',
       b'\x00\x00c\xec\x37@\x04',
       b'\x00\x00c\xd1\x1f@\x10\x16',
+      b'\x00\x00c\xec\x00\x00\x00\x00',
     ],
     (Ecu.engine, 0x7e0, None): [
       b'\xb4+@p\a',
@@ -518,6 +541,7 @@ FW_VERSIONS = {
       b'\xbe\xfb\xe0p\000',
       b'\xbf\xfb\xe0b\x00',
       b'\xbe\xe2@`\x00',
+      b'\xbd\xf2@\x80\x00',
     ],
   },
   CAR.OUTBACK_PREGLOBAL_2018: {
@@ -600,6 +624,7 @@ FW_VERSIONS = {
       b'\xa1  \x08\x02',
       b'\xa1 \x06\x02',
       b'\xa1  \x08\x00',
+      b'\xa1 "\t\x00',
     ],
     (Ecu.eps, 0x746, None): [
       b'\x9b\xc0\x10\x00',
@@ -621,6 +646,7 @@ FW_VERSIONS = {
       b'\xe2"`p\x07',
       b'\xf1\x82\xe2,\xa0@\x07',
       b'\xbc"`q\x07',
+      b'\xe3,\xa0@\x07',
     ],
     (Ecu.transmission, 0x7e1, None): [
       b'\xa5\xfe\xf7@\x00',
