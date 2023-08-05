@@ -1,3 +1,8 @@
+2023-08-05
+==========
+* OP 0.9.4
+  * All lateral self tuning mods enabled for 18/19 Outback
+
 2023-05-01
 ==========
 * FPv2 updates
