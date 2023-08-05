@@ -108,11 +108,8 @@ class CarInterface(CarInterfaceBase):
       ret.wheelbase = 2.67
       ret.centerToFront = ret.wheelbase * 0.5
       ret.steerRatio = 20           # learned, 14 stock
-      ret.lateralTuning.init('pid')
       ret.steerActuatorDelay = 0.1
-      ret.lateralTuning.pid.kf = 0.000039
-      ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0., 10., 20.], [0., 10., 20.]]
-      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.01, 0.05, 0.2], [0.003, 0.018, 0.025]]
+      CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
 
     elif candidate == CAR.WRX_PREGLOBAL:
       ret.safetyConfigs[0].safetyParam = 1  # WRX has reversed driver torque signal
