@@ -1,0 +1,99 @@
+name: Debug Discourse Posting
+
+on:
+  push:
+
+jobs:
+  test-discourse-post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Discourse configuration
+        id: discourse_config
+        env:
+          DISCOURSE_URL: ${{ vars.DISCOURSE_URL }}
+          DISCOURSE_API_KEY: ${{ secrets.DISCOURSE_API_KEY }}
+          DISCOURSE_API_USERNAME: ${{ secrets.DISCOURSE_API_USERNAME }}
+        run: |
+          if [ -n "${DISCOURSE_URL}" ] && [ -n "${DISCOURSE_API_KEY}" ] && [ -n "${DISCOURSE_API_USERNAME}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping Discourse post tests because DISCOURSE_URL / DISCOURSE_API_KEY / DISCOURSE_API_USERNAME are not fully configured."
+          fi
+
+      - name: Post test message to existing topic
+        if: ${{ steps.discourse_config.outputs.configured == 'true' && vars.DISCOURSE_UPDATES_TOPIC_ID != '' }}
+        uses: ./.github/workflows/post-to-discourse
+        with:
+          discourse-url: ${{ vars.DISCOURSE_URL }}
+          api-key: ${{ secrets.DISCOURSE_API_KEY }}
+          api-username: ${{ secrets.DISCOURSE_API_USERNAME }}
+          topic-id: ${{ vars.DISCOURSE_UPDATES_TOPIC_ID }}
+          message: |
+            ## 🧪 Test Post from GitHub Actions
+            
+            **This is a test post to verify Discourse integration**
+            
+            - **Workflow**: ${{ github.workflow }}
+            - **Run Number**: #${{ github.run_number }}
+            - **Branch**: `${{ github.ref_name }}`
+            - **Commit**: ${{ github.sha }}
+            - **Actor**: @${{ github.actor }}
+            - **Timestamp**: ${{ github.event.head_commit.timestamp }}
+            
+            ---
+            
+            ### Fake Build Info (for testing)
+            - **Version**: 0.9.8-test
+            - **Build**: #42
+            - **Branch**: release-test
+            
+            [View workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            
+            *This is an automated test message. Drive safe! 🚗💨*
+
+      - name: Skip existing-topic test when topic is not configured
+        if: ${{ steps.discourse_config.outputs.configured == 'true' && vars.DISCOURSE_UPDATES_TOPIC_ID == '' }}
+        run: |
+          echo "::notice::Skipping existing-topic post test because DISCOURSE_UPDATES_TOPIC_ID is not set."
+      
+      
+      - name: Create topic on Discourse
+        if: ${{ steps.discourse_config.outputs.configured == 'true' }}
+        uses: ./.github/workflows/post-to-discourse
+        with:
+          discourse-url: ${{ vars.DISCOURSE_URL }}
+          api-key: ${{ secrets.DISCOURSE_API_KEY }}
+          api-username: ${{ secrets.DISCOURSE_API_USERNAME }}
+          #topic-id: ${{ vars.DISCOURSE_UPDATES_TOPIC_ID }}
+          category-id: 4
+          title: "This is a test of a new topic instead of a reply"
+          message: |
+            ## 🧪 Test Post from GitHub Actions
+            
+            **This is a test post to verify Discourse integration**
+            
+            - **Workflow**: ${{ github.workflow }}
+            - **Run Number**: #${{ github.run_number }}
+            - **Branch**: `${{ github.ref_name }}`
+            - **Commit**: ${{ github.sha }}
+            - **Actor**: @${{ github.actor }}
+            - **Timestamp**: ${{ github.event.head_commit.timestamp }}
+            
+            ---
+            
+            ### Fake Build Info (for testing)
+            - **Version**: 0.9.8-test
+            - **Build**: #42
+            - **Branch**: release-test
+            
+            [View workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            
+            *This is an automated test message. Drive safe! 🚗💨*
+      - name: Display results
+        if: always()
+        run: |
+          echo "::notice::Discourse post test completed"
+          echo "Check your Discourse topic to verify the post appeared correctly"
