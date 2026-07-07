@@ -130,77 +130,11 @@
                   "options": [
                     {
                       "value": 0,
-                      "label": "Remain Active",
-                      "enablement": [
-                        {
-                          "type": "not",
-                          "condition": {
-                            "type": "any",
-                            "conditions": [
-                              {
-                                "type": "capability",
-                                "field": "brand",
-                                "equals": "rivian"
-                              },
-                              {
-                                "type": "all",
-                                "conditions": [
-                                  {
-                                    "type": "capability",
-                                    "field": "brand",
-                                    "equals": "tesla"
-                                  },
-                                  {
-                                    "type": "not",
-                                    "condition": {
-                                      "type": "capability",
-                                      "field": "tesla_has_vehicle_bus",
-                                      "equals": true
-                                    }
-                                  }
-                                ]
-                              }
-                            ]
-                          }
-                        }
-                      ]
+                      "label": "Remain Active"
                     },
                     {
                       "value": 1,
-                      "label": "Pause",
-                      "enablement": [
-                        {
-                          "type": "not",
-                          "condition": {
-                            "type": "any",
-                            "conditions": [
-                              {
-                                "type": "capability",
-                                "field": "brand",
-                                "equals": "rivian"
-                              },
-                              {
-                                "type": "all",
-                                "conditions": [
-                                  {
-                                    "type": "capability",
-                                    "field": "brand",
-                                    "equals": "tesla"
-                                  },
-                                  {
-                                    "type": "not",
-                                    "condition": {
-                                      "type": "capability",
-                                      "field": "tesla_has_vehicle_bus",
-                                      "equals": true
-                                    }
-                                  }
-                                ]
-                              }
-                            ]
-                          }
-                        }
-                      ]
+                      "label": "Pause"
                     },
                     {
                       "value": 2,
