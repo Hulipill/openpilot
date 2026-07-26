@@ -4,26 +4,31 @@ Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
 This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
-import pytest
+from unittest.mock import MagicMock, patch
 
-from openpilot.sunnypilot.sunnylink.athena import sunnylinkd
 from openpilot.common.test import OpenpilotTestCase
+from openpilot.sunnypilot.sunnylink.athena import sunnylinkd
 
 
-class TestSunnylinkdMethods:
-  @pytest.fixture(autouse=True)
-  def setup(self, mocker):
+class TestSunnylinkdMethods(OpenpilotTestCase):
+  def setUp(self):
+    super().setUp()
     self.saved_params = []
 
     def mock_save_param(key, value, compression=False):
       self.saved_params.append((key, value, compression))
 
-    mocker.patch.object(sunnylinkd, 'save_param_from_base64_encoded_string', mock_save_param)
+    save_patcher = patch.object(sunnylinkd, 'save_param_from_base64_encoded_string', mock_save_param)
+    save_patcher.start()
+    self.addCleanup(save_patcher.stop)
 
     # Mock params with IsEngaged=False and SunnylinkAllowSensitiveWrite=False by default
-    self.mock_params = mocker.MagicMock()
+    self.mock_params = MagicMock()
     self.mock_params.get_bool.return_value = False
-    mocker.patch.object(sunnylinkd, 'params', self.mock_params)
+
+    params_patcher = patch.object(sunnylinkd, 'params', self.mock_params)
+    params_patcher.start()
+    self.addCleanup(params_patcher.stop)
 
   def test_saveParams_always_blocked(self):
     blocked_params = {
@@ -33,7 +38,7 @@ class TestSunnylinkdMethods:
 
     sunnylinkd.saveParams(blocked_params)
 
-    assert len(self.saved_params) == 0
+    self.assertEqual(len(self.saved_params), 0)
 
   def test_saveParams_allowed(self):
     allowed_params = {
@@ -44,10 +49,10 @@ class TestSunnylinkdMethods:
     sunnylinkd.saveParams(allowed_params)
 
     # verify content
-    assert len(self.saved_params) == 2
+    self.assertEqual(len(self.saved_params), 2)
     keys_saved = [p[0] for p in self.saved_params]
-    assert "SpeedLimitOffset" in keys_saved
-    assert "MyCustomParam" in keys_saved
+    self.assertIn("SpeedLimitOffset", keys_saved)
+    self.assertIn("MyCustomParam", keys_saved)
 
   def test_saveParams_mixed(self):
     mixed_params = {
@@ -58,9 +63,9 @@ class TestSunnylinkdMethods:
     sunnylinkd.saveParams(mixed_params)
 
     # should save allowed one
-    assert len(self.saved_params) == 1
-    assert self.saved_params[0][0] == "SpeedLimitOffset"
-    assert self.saved_params[0][1] == "10"
+    self.assertEqual(len(self.saved_params), 1)
+    self.assertEqual(self.saved_params[0][0], "SpeedLimitOffset")
+    self.assertEqual(self.saved_params[0][1], "10")
 
   def test_saveParams_always_blocked_sensitive_enabled(self):
     """GithubSshKeys, GithubUsername remain blocked even with toggle enabled"""
@@ -72,7 +77,7 @@ class TestSunnylinkdMethods:
       "SunnylinkAllowSensitiveWrite": "1",
     })
 
-    assert len(self.saved_params) == 0
+    self.assertEqual(len(self.saved_params), 0)
 
   # === SENSITIVE_PARAMS ===
 
@@ -97,7 +102,7 @@ class TestSunnylinkdMethods:
       "CompletedTrainingVersion": "0",
     })
 
-    assert len(self.saved_params) == 0
+    self.assertEqual(len(self.saved_params), 0)
 
   def test_saveParams_sensitive_allowed_with_toggle_enabled(self):
     """Sensitive params are allowed when toggle is enabled"""
@@ -109,7 +114,7 @@ class TestSunnylinkdMethods:
       "DongleId": "new_dongle",
     })
 
-    assert len(self.saved_params) == 3
+    self.assertEqual(len(self.saved_params), 3)
 
   # === Engaged state tests ===
 
@@ -122,7 +127,7 @@ class TestSunnylinkdMethods:
       "AlphaLongitudinalEnabled": "1",
     })
 
-    assert len(self.saved_params) == 0
+    self.assertEqual(len(self.saved_params), 0)
 
   def test_saveParams_safety_critical_blocked_when_engaged(self):
     """Safety-critical params are blocked while engaged"""
@@ -136,7 +141,7 @@ class TestSunnylinkdMethods:
       "OffroadMode": "1",
     })
 
-    assert len(self.saved_params) == 0
+    self.assertEqual(len(self.saved_params), 0)
 
   def test_saveParams_allowed_when_not_engaged(self):
     """Safety-critical params are allowed when not engaged"""
@@ -150,4 +155,4 @@ class TestSunnylinkdMethods:
       "AlphaLongitudinalEnabled": "1",
     })
 
-    assert len(self.saved_params) == 7
+    self.assertEqual(len(self.saved_params), 7)
