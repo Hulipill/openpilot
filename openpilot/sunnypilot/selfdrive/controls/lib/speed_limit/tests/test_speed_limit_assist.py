@@ -175,8 +175,8 @@ class TestSpeedLimitAssist(OpenpilotTestCase):
     boundary_value = resolve_pcm_long_required_max(True, 50, True)
     above_boundary_value = resolve_pcm_long_required_max(True, 51, True)
 
-    assert boundary_value == pytest.approx(13.8888889)
-    assert above_boundary_value == pytest.approx(16.6666667)
+    self.assertAlmostEqual(boundary_value, 13.8888889, places=6)
+    self.assertAlmostEqual(above_boundary_value, 16.6666667, places=6)
 
   def test_pcm_long_metric_rounds_down_for_lookup(self):
     self.params.put_bool("IsMetric", True)
