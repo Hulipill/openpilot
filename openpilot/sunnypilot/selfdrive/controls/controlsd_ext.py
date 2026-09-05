@@ -16,6 +16,7 @@ from openpilot.sunnypilot import PARAMS_UPDATE_PERIOD
 from openpilot.sunnypilot.livedelay.helpers import get_lat_delay
 from openpilot.sunnypilot.modeld_v2.modeld_base import ModelStateBase
 from openpilot.sunnypilot.selfdrive.controls.lib.blinker_pause_lateral import BlinkerPauseLateral
+from openpilot.sunnypilot.selfdrive.controls.lib.lane_centering import LaneCenteringController
 from openpilot.sunnypilot.selfdrive.controls.lib.latcontrol_torque_v0 import LatControlTorque as LatControlTorqueV0
 
 
@@ -26,6 +27,11 @@ class ControlsExt(ModelStateBase):
     self.params = params
     self._param_update_time: float = 0.0
     self.blinker_pause_lateral = BlinkerPauseLateral()
+    self.lane_centering = LaneCenteringController()
+    self.lane_centering_enabled: bool = False
+    self.lane_centering_pause_on_signal: bool = True
+    self.lane_centering_e2e_authority: float = 1.0
+    self.lane_center_offset: float = 0.0
 
     cloudlog.info("controlsd_ext is waiting for CarParamsSP")
     self.CP_SP = messaging.log_from_bytes(params.get("CarParamsSP", block=True), custom.CarParamsSP)
@@ -50,11 +56,33 @@ class ControlsExt(ModelStateBase):
   def get_params_sp(self, sm: messaging.SubMaster) -> None:
     if time.monotonic() - self._param_update_time > PARAMS_UPDATE_PERIOD:
       self.blinker_pause_lateral.get_params()
+      self.lane_centering_enabled = self.params.get_bool("LaneCentering")
+      self.lane_centering_pause_on_signal = self.params.get_bool("LaneCenteringPauseOnSignal")
+      self.lane_centering_e2e_authority = float(self.params.get("LaneCenteringE2EAuthority", return_default=True))
+      self.lane_center_offset = float(self.params.get("LaneCenterOffset", return_default=True))
 
       if self.CP.lateralTuning.which() == 'torque':
         self.lat_delay = get_lat_delay(self.params, sm["lateralDelay"].lateralDelay)
 
       self._param_update_time = time.monotonic()
+
+  def apply_lane_centering(self, model_curvature: float, sm: messaging.SubMaster, lat_active: bool) -> float:
+    CS = sm['carState']
+    model_v2 = sm['modelV2']
+    turn_signal = bool(CS.leftBlinker or CS.rightBlinker)
+    model_valid = bool(sm.all_checks(['modelV2']))
+    return self.lane_centering.update(
+      model_curvature=model_curvature,
+      model_v2=model_v2,
+      v_ego=CS.vEgo,
+      enabled=self.lane_centering_enabled,
+      offset=self.lane_center_offset,
+      e2e_authority=self.lane_centering_e2e_authority,
+      lat_active=lat_active,
+      model_valid=model_valid,
+      pause_on_signal=self.lane_centering_pause_on_signal,
+      turn_signal_active=turn_signal,
+    )
 
   def get_lat_active(self, sm: messaging.SubMaster) -> bool:
     if self.blinker_pause_lateral.update(sm['carState']):
