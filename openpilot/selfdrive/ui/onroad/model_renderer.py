@@ -255,12 +255,16 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
 
   def _draw_lane_lines(self):
     """Draw lane lines and road edges"""
+    lane_centering_side = self.get_lane_centering_bias(ui_state.sm)
     for i, lane_line in enumerate(self._lane_lines):
       if lane_line.projected_points.size == 0:
         continue
 
       alpha = np.clip(self._lane_line_probs[i], 0.0, 0.7)
-      color = rl.Color(255, 255, 255, int(alpha * 255))
+      if i == lane_centering_side:
+        color = rl.Color(0, 150, 255, int(alpha * 255))
+      else:
+        color = rl.Color(255, 255, 255, int(alpha * 255))
       draw_polygon(self._rect, lane_line.projected_points, color)
 
     for i, road_edge in enumerate(self._road_edges):

@@ -273,8 +273,11 @@ class ModelRenderer(Widget, ModelRendererSP):
     self._path_gradient.colors = segment_colors
     self._path_gradient.stops = gradient_stops
 
-  def _get_ll_color(self, prob: float, adjacent: bool, left: bool):
+  def _get_ll_color(self, prob: float, adjacent: bool, left: bool, is_lane_centering: bool = False):
     alpha = np.clip(prob, 0.0, 0.7)
+    if is_lane_centering:
+      return rl.Color(0, 150, 255, int(alpha * 255))
+
     if adjacent:
       _base_color = LANE_LINE_COLORS.get(ui_state.status, LANE_LINE_COLORS[UIStatus.DISENGAGED])
       color = rl.Color(_base_color.r, _base_color.g, _base_color.b, int(alpha * 255))
@@ -299,12 +302,13 @@ class ModelRenderer(Widget, ModelRendererSP):
   def _draw_lane_lines(self):
     """Draw lane lines and road edges. Two closest lines should be green (lane line or road edges)."""
     offset = np.array([self._rect.x, self._rect.y], dtype=np.float32)
+    lane_centering_side = self.get_lane_centering_bias(ui_state.sm)
 
     for i, lane_line in enumerate(self._lane_lines):
       if lane_line.projected_points.size == 0:
         continue
 
-      color = self._get_ll_color(float(self._lane_line_probs[i]), i in (1, 2), i in (0, 1))
+      color = self._get_ll_color(float(self._lane_line_probs[i]), i in (1, 2), i in (0, 1), is_lane_centering=(i == lane_centering_side))
       draw_polygon(self._rect, lane_line.projected_points + offset, color)
 
     for i, road_edge in enumerate(self._road_edges):
