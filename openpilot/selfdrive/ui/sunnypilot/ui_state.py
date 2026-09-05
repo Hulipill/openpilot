@@ -61,9 +61,8 @@ class UIStateSP:
     self.standstill_timer: bool = False
     self.sunnylink_enabled: bool = False
     self.torque_bar: bool = False
-    self.enforce_torque_control: bool = False
-    self.custom_torque_params: bool = False
     self.torque_override_enabled: bool = False
+    self.lane_centering: bool = False
     self._sp_initialized: bool = False
 
   def update(self) -> None:
@@ -184,6 +183,7 @@ class UIStateSP:
     self.boot_offroad_mode = self.params.get("DeviceBootMode", return_default=True)
     self.always_offroad = self.params.get_bool("OffroadMode")
     self.screensaver_enabled = self.params.get_bool("ScreenSaverEnabled")
+    self.lane_centering = self.params.get_bool("LaneCentering")
 
     if not self._sp_initialized:
       self._sp_initialized = True

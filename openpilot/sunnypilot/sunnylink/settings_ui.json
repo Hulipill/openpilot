@@ -505,6 +505,58 @@
               ]
             }
           ]
+        },
+        {
+          "id": "lane_centering",
+          "title": "Lane Centering",
+          "description": "Bias the model command toward the detected lane center",
+          "items": [
+            {
+              "key": "LaneCentering",
+              "widget": "toggle",
+              "title": "Enable Lane Centering",
+              "description": "Experimentally bias the model command toward the detected lane center. Requires two confident lane lines and remains subject to normal curvature and jerk limits."
+            }
+          ],
+          "sub_panels": [
+            {
+              "id": "lane_centering_settings",
+              "label": "Lane Centering Settings",
+              "trigger_key": "LaneCentering",
+              "trigger_condition": {
+                "type": "param",
+                "key": "LaneCentering",
+                "equals": true
+              },
+              "items": [
+                {
+                  "key": "LaneCenterOffset",
+                  "widget": "option",
+                  "title": "Lane Center Offset",
+                  "description": "Shift the lane target left or right in meters. The controller reduces this offset automatically when the detected lane is narrow.",
+                  "min": -0.3,
+                  "max": 0.3,
+                  "step": 0.01,
+                  "unit": "m"
+                },
+                {
+                  "key": "LaneCenteringPauseOnSignal",
+                  "widget": "toggle",
+                  "title": "Pause Lane Centering On Turn Signal",
+                  "description": "Fade lane-centering correction out when a turn signal is active so it does not fight a lane change or turn."
+                },
+                {
+                  "key": "LaneCenteringE2EAuthority",
+                  "widget": "option",
+                  "title": "E2E Override Strength",
+                  "description": "Choose how strongly the vision model may override lane centering when it sees a hazard.",
+                  "min": 0.0,
+                  "max": 1.0,
+                  "step": 0.05
+                }
+              ]
+            }
+          ]
         }
       ]
     },
