@@ -515,7 +515,7 @@
               "key": "LaneCentering",
               "widget": "toggle",
               "title": "Enable Lane Centering",
-              "description": "Experimentally bias the model command toward the detected lane center. Requires two confident lane lines and remains subject to normal curvature and jerk limits."
+              "description": "Experimentally bias the model command toward the detected lane center using code from StarPilot. Requires two confident lane boundaries (lane lines or road edges) and remains subject to normal curvature and jerk limits."
             }
           ],
           "sub_panels": [
