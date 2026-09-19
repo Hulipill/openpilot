@@ -17,14 +17,20 @@ def _path(y, y_std=0.1):
   )
 
 
-def _model(left=-1.8, right=1.8, model_y=0.0, lane_prob=0.9, lane_std=0.1, path_std=0.1, lane_change=0):
-  return SimpleNamespace(
+def _model(left=-1.8, right=1.8, model_y=0.0, lane_prob=0.9, lane_std=0.1, path_std=0.1, lane_change=0,
+           road_edges=None, road_edge_stds=None):
+  res = SimpleNamespace(
     laneLines=[_path(0.0), _path(left), _path(right), _path(0.0)],
     laneLineProbs=[0.0, lane_prob, lane_prob, 0.0],
     laneLineStds=[0.0, lane_std, lane_std, 0.0],
     position=_path(model_y, path_std),
     meta=SimpleNamespace(laneChangeState=lane_change),
   )
+  if road_edges is not None:
+    res.roadEdges = road_edges
+  if road_edge_stds is not None:
+    res.roadEdgeStds = road_edge_stds
+  return res
 
 
 def _update(controller, model, *, offset=0.0, authority=1.0, enabled=True, active=True, valid=True, speed=_V_EGO,
@@ -155,6 +161,52 @@ class TestLaneCentering(unittest.TestCase):
     _, steady = _converge(model, authority=0.0)
     self.assertTrue(0.0 < first < steady)
     self.assertTrue(np.isclose(steady, 0.004 * 0.30, atol=1e-6))
+
+  def test_right_road_edge_fallback(self):
+    # Left lane line confident, right lane line missing; right road edge confident
+    model = _model(left=-1.5, right=0.0, lane_prob=0.0,
+                   road_edges=[_path(0.0), _path(2.1)],
+                   road_edge_stds=[0.5, 0.1])
+    model.laneLineProbs[1] = 0.9
+    model.laneLineStds[1] = 0.1
+    _, right = _converge(model, authority=0.0)
+    self.assertGreater(right, 0.0)
+
+  def test_left_road_edge_fallback(self):
+    # Right lane line confident, left lane line missing; left road edge confident
+    model = _model(left=0.0, right=1.5, lane_prob=0.0,
+                   road_edges=[_path(-2.1), _path(0.0)],
+                   road_edge_stds=[0.1, 0.5])
+    model.laneLineProbs[2] = 0.9
+    model.laneLineStds[2] = 0.1
+    _, left = _converge(model, authority=0.0)
+    self.assertLess(left, 0.0)
+
+  def test_both_road_edges_as_boundaries(self):
+    # No lane lines painted on the road; vehicle centers between left and right road edges
+    model = _model(left=0.0, right=0.0, lane_prob=0.0,
+                   road_edges=[_path(-1.5), _path(2.1)],
+                   road_edge_stds=[0.1, 0.1])
+    _, right = _converge(model, authority=0.0)
+    self.assertGreater(right, 0.0)
+
+  def test_lane_line_preferred_over_road_edge(self):
+    # Confident lane lines define a 3.6m lane (left=-1.8, right=1.8 -> center=0.0)
+    # Right road edge is outside shoulder at 3.5m. Centering should use lane line (output=0.0).
+    model = _model(left=-1.8, right=1.8, lane_prob=0.9, lane_std=0.1,
+                   road_edges=[_path(-3.5), _path(3.5)],
+                   road_edge_stds=[0.1, 0.1])
+    _, output = _converge(model, authority=0.0)
+    self.assertEqual(output, 0.0)
+
+  def test_invalid_road_edge_rejected(self):
+    # Missing lane line and high-variance road edge (std > 0.3)
+    model = _model(left=-1.5, right=0.0, lane_prob=0.0,
+                   road_edges=[_path(0.0), _path(2.1)],
+                   road_edge_stds=[0.5, 0.4])
+    model.laneLineProbs[1] = 0.9
+    model.laneLineStds[1] = 0.1
+    self.assertEqual(_update(LaneCenteringController(), model), 0.0)
 
 
 if __name__ == '__main__':

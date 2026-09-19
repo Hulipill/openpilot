@@ -13,6 +13,7 @@ from openpilot.selfdrive.controls.lib.drive_helpers import smooth_value
 _MIN_V_EGO = 5.0
 _MIN_LANE_PROB = 0.6
 _MAX_LANE_STD = 0.3
+_MAX_ROAD_EDGE_STD = 0.3
 _MIN_LANE_WIDTH = 2.6
 _MAX_LANE_WIDTH = 4.8
 _MAX_OFFSET = 0.3
@@ -94,31 +95,67 @@ class LaneCenteringController:
   def _covers(x, distance: float) -> bool:
     return bool(x[0] <= distance <= x[-1])
 
+  def _get_boundary(self, lane_line, prob, std, road_edge, road_edge_std, lookahead: float):
+    # Try painted lane line first if confident
+    if lane_line is not None and prob is not None and std is not None:
+      try:
+        p = float(prob)
+        s = float(std)
+        if np.isfinite(p) and np.isfinite(s) and _MIN_LANE_PROB <= p <= 1.0 and 0.0 <= s <= _MAX_LANE_STD:
+          x = np.asarray(lane_line.x, dtype=float)
+          y = np.asarray(lane_line.y, dtype=float)
+          if self._valid_path(x, y) and self._covers(x, lookahead):
+            return x, y
+      except (AttributeError, IndexError, TypeError, ValueError):
+        pass
+
+    # Fall back to road edge when lane line is absent or uncertain
+    if road_edge is not None and road_edge_std is not None:
+      try:
+        s = float(road_edge_std)
+        if np.isfinite(s) and 0.0 <= s <= _MAX_ROAD_EDGE_STD:
+          x = np.asarray(road_edge.x, dtype=float)
+          y = np.asarray(road_edge.y, dtype=float)
+          if self._valid_path(x, y) and self._covers(x, lookahead):
+            return x, y
+      except (AttributeError, IndexError, TypeError, ValueError):
+        pass
+
+    return None, None
+
   def _raw_correction(self, model_v2, v_ego: float, offset: float, e2e_authority: float) -> tuple[bool, float]:
     try:
-      lane_lines = model_v2.laneLines
-      probs = np.asarray(model_v2.laneLineProbs, dtype=float)
-      stds = np.asarray(model_v2.laneLineStds, dtype=float)
-      if len(lane_lines) < 3 or probs.size < 3 or stds.size < 3:
-        return False, 0.0
-      if not np.isfinite(probs[[1, 2]]).all() or not np.isfinite(stds[[1, 2]]).all():
-        return False, 0.0
-      if np.any(probs[[1, 2]] < _MIN_LANE_PROB) or np.any(probs[[1, 2]] > 1.0):
-        return False, 0.0
-      if np.any(stds[[1, 2]] < 0.0) or np.any(stds[[1, 2]] > _MAX_LANE_STD):
-        return False, 0.0
-
-      left_x = np.asarray(lane_lines[1].x, dtype=float)
-      left_y = np.asarray(lane_lines[1].y, dtype=float)
-      right_x = np.asarray(lane_lines[2].x, dtype=float)
-      right_y = np.asarray(lane_lines[2].y, dtype=float)
+      lookahead = float(np.clip(v_ego, 8.0, 35.0))
       pos_x = np.asarray(model_v2.position.x, dtype=float)
       pos_y = np.asarray(model_v2.position.y, dtype=float)
-      if not (self._valid_path(left_x, left_y) and self._valid_path(right_x, right_y) and self._valid_path(pos_x, pos_y)):
+      if not (self._valid_path(pos_x, pos_y) and self._covers(pos_x, lookahead)):
         return False, 0.0
 
-      lookahead = float(np.clip(v_ego, 8.0, 35.0))
-      if not all(self._covers(x, lookahead) for x in (left_x, right_x, pos_x)):
+      lane_lines = getattr(model_v2, "laneLines", [])
+      probs = np.asarray(getattr(model_v2, "laneLineProbs", []), dtype=float)
+      stds = np.asarray(getattr(model_v2, "laneLineStds", []), dtype=float)
+
+      road_edges = getattr(model_v2, "roadEdges", [])
+      road_edge_stds = np.asarray(getattr(model_v2, "roadEdgeStds", []), dtype=float)
+
+      left_ll = lane_lines[1] if len(lane_lines) > 1 else None
+      left_prob = probs[1] if probs.size > 1 else None
+      left_std = stds[1] if stds.size > 1 else None
+      left_re = road_edges[0] if len(road_edges) > 0 else None
+      left_re_std = road_edge_stds[0] if road_edge_stds.size > 0 else None
+
+      left_x, left_y = self._get_boundary(left_ll, left_prob, left_std, left_re, left_re_std, lookahead)
+      if left_x is None or left_y is None:
+        return False, 0.0
+
+      right_ll = lane_lines[2] if len(lane_lines) > 2 else None
+      right_prob = probs[2] if probs.size > 2 else None
+      right_std = stds[2] if stds.size > 2 else None
+      right_re = road_edges[1] if len(road_edges) > 1 else None
+      right_re_std = road_edge_stds[1] if road_edge_stds.size > 1 else None
+
+      right_x, right_y = self._get_boundary(right_ll, right_prob, right_std, right_re, right_re_std, lookahead)
+      if right_x is None or right_y is None:
         return False, 0.0
 
       left = float(np.interp(lookahead, left_x, left_y))

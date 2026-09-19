@@ -272,7 +272,11 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
         continue
 
       alpha = np.clip(1.0 - self._road_edge_stds[i], 0.0, 1.0)
-      color = rl.Color(255, 0, 0, int(alpha * 255))
+      if (i == 0 and lane_centering_side == 1 and (len(self._lane_line_probs) <= 1 or self._lane_line_probs[1] < 0.6)) or \
+         (i == 1 and lane_centering_side == 2 and (len(self._lane_line_probs) <= 2 or self._lane_line_probs[2] < 0.6)):
+        color = rl.Color(0, 150, 255, int(alpha * 255))
+      else:
+        color = rl.Color(255, 0, 0, int(alpha * 255))
       draw_polygon(self._rect, road_edge.projected_points, color)
 
   def _draw_path(self):

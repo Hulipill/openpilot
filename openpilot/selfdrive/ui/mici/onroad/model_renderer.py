@@ -315,8 +315,10 @@ class ModelRenderer(Widget, ModelRendererSP):
       if road_edge.projected_points.size == 0:
         continue
 
+      is_centering = (i == 0 and lane_centering_side == 1 and (len(self._lane_line_probs) <= 1 or float(self._lane_line_probs[1]) < 0.6)) or \
+                     (i == 1 and lane_centering_side == 2 and (len(self._lane_line_probs) <= 2 or float(self._lane_line_probs[2]) < 0.6))
       # if closest lane lines are not confident, make road edges green
-      color = self._get_ll_color(float(1.0 - self._road_edge_stds[i]), float(self._lane_line_probs[i + 1]) < 0.25, i == 0)
+      color = self._get_ll_color(float(1.0 - self._road_edge_stds[i]), float(self._lane_line_probs[i + 1]) < 0.25, i == 0, is_lane_centering=is_centering)
       draw_polygon(self._rect, road_edge.projected_points + offset, color)
 
   def _draw_path(self):
