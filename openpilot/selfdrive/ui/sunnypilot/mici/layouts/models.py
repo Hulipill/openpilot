@@ -11,16 +11,56 @@ import pyray as rl
 from openpilot.cereal import custom
 from openpilot.selfdrive.ui.mici.widgets.dialog import BigConfirmationDialog, BigDialog
 from openpilot.sunnypilot.models.helpers import ACTIVE_BUNDLE_KEYS, get_selected_bundle
-from openpilot.selfdrive.ui.mici.widgets.button import BigButton
+from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigMultiToggle
 from openpilot.selfdrive.ui.ui_state import ui_state, device
-from openpilot.selfdrive.ui.sunnypilot.model_info import (active_source, big_model_state, bundles_for_source, carrying_model,
-                                                           default_model_name, model_cache_size_mb, model_info, queued_name,
-                                                           refresh_in_progress, refresh_model_list)
+from openpilot.selfdrive.ui.sunnypilot.accelerator_link import LINK_MODES, LINK_PARAM, link_mode, link_toggle_meaningful
+from openpilot.selfdrive.ui.sunnypilot.model_info import (active_source, big_model_progress, big_model_state, bundles_for_source,
+                                                           carrying_model, default_model_name, model_cache_size_mb, model_info,
+                                                           queued_name, refresh_in_progress, refresh_model_list)
 from openpilot.system.ui.lib.application import FontWeight, gui_app
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.label import UnifiedLabel
 from openpilot.system.ui.widgets.scroller import NavScroller
+
+
+# the value line: the mode, and what it is for
+LINK_MODE_LABELS = {"off": "off", "usb": "usb: mac, linux", "ios": "iOS: iPhone, iPad"}
+
+
+class AcceleratorLinkToggle(BigMultiToggle):
+  """off, usb, ios, a pill each, and the value line says what the mode is for.
+  The pills follow the param, not a tap. Locked while onroad and drawn so, like
+  the model buttons beside it: jetlink switches the link only parked."""
+
+  def __init__(self):
+    super().__init__(tr("accelerator link"), [tr(LINK_MODE_LABELS[m]) for m in LINK_MODES])
+    self._mode = link_mode()
+    self._show()
+    self.set_enabled(lambda: ui_state.is_offroad())
+
+  def _show(self) -> None:
+    value = self._options[LINK_MODES.index(self._mode)]
+    if value != self.get_value():
+      self.set_value(value)
+
+  def _handle_mouse_release(self, mouse_pos) -> None:
+    BigButton._handle_mouse_release(self, mouse_pos)
+    if self.enabled:
+      self._mode = LINK_MODES[(LINK_MODES.index(self._mode) + 1) % len(LINK_MODES)]
+      ui_state.params.put(LINK_PARAM, LINK_MODES.index(self._mode), block=True)
+    self._show()
+
+  def _draw_content(self, btn_y: float) -> None:
+    BigButton._draw_content(self, btn_y)
+    x = self._rect.x + self._rect.width - self._txt_enabled_toggle.width
+    for i in range(len(LINK_MODES)):
+      self._draw_pill(x, btn_y + 35 * i, LINK_MODES[i] == self._mode)
+
+  def refresh(self) -> None:
+    self._mode = link_mode()
+    self._show()
+
 
 def _model_info() -> tuple[str, str, str]:
   """(active model, info header, info text) for the panel. Runner-matched: the
@@ -33,6 +73,15 @@ def _model_info() -> tuple[str, str, str]:
     big = get_selected_bundle(ui_state.params, "chestnut")
     carry_display = big.displayName if big else default_model_name("chestnut")
   active_text = (carry_display or active_name).lower()
+  provisioning = big_model_progress()
+  if provisioning is not None:
+    stage, frac, msg = provisioning
+    if stage == 'failed':
+      return active_text, tr("big model"), tr("unavailable")
+    # "waiting for the accelerator" says more than "connect 0%"; no percentage for a stage
+    # with nothing to measure
+    detail = tr(msg) if msg else tr(stage)
+    return active_text, tr("big model"), f"{detail} {frac * 100:.0f}%" if frac > 0 else detail
   if state == 'failed':
     return active_text, tr("big model"), tr("unavailable")
   if state == 'loading':
@@ -91,11 +140,22 @@ class ModelsLayoutMici(NavScroller):
     self.cancel_download_btn = BigButton(tr("cancel download"))
     self.cancel_download_btn.set_click_callback(lambda: ui_state.params.remove("ModelManager_DownloadRef"))
 
+<<<<<<< HEAD
+=======
+    self.link_toggle = AcceleratorLinkToggle()
+    self.link_toggle.set_visible(link_toggle_meaningful())
+
+>>>>>>> ec3ea5152 (feat(jetlink): integrate jetlink accelerator framework)
     self.clear_cache_btn = BigButton(tr("clear cache"), value=f"{model_cache_size_mb():.1f} MB")
     self.clear_cache_btn.set_click_callback(self._confirm_clear_cache)
     self._cache_size_time = 0.0
 
+<<<<<<< HEAD
     self.main_items = [self.current_model_info, self.select_model_btn, self.cancel_download_btn, self.refresh_btn, self.clear_cache_btn]
+=======
+    self.main_items = [self.current_model_info, self.select_model_btn, self.cancel_download_btn, self.link_toggle, self.refresh_btn,
+                       self.clear_cache_btn]
+>>>>>>> ec3ea5152 (feat(jetlink): integrate jetlink accelerator framework)
     self._scroller.add_widgets(self.main_items)
 
   @property
@@ -218,6 +278,9 @@ class ModelsLayoutMici(NavScroller):
     should_update = self._download_frame % (gui_app.target_fps / 2) == 0
     if should_update:
       self._download_progress = self._download_progress + "." if len(self._download_progress) < 3 else ""
+      # present() and unavailable_reason() read sysfs, so they ride this half-second tick
+      self.link_toggle.refresh()
+      self.link_toggle.set_visible(link_toggle_meaningful())
 
     is_downloading = (manager.selectedBundle
                       and manager.selectedBundle.status == custom.ModelManagerSP.DownloadStatus.downloading)

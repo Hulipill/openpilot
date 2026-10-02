@@ -160,6 +160,15 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
 	{"LiveCurvatureParameters", {PERSISTENT | DONT_LOG, BYTES}},
 
     // --- sunnypilot params --- //
+
+    // Accelerators: what runs the large model. See sunnypilot/jetlink_adapter/.
+    {"AcceleratorProgress", {CLEAR_ON_MANAGER_START, JSON}},
+    {"Offroad_AcceleratorUnavailable", {CLEAR_ON_MANAGER_START, JSON}},
+    // jetlink backend. JetlinkSpec carries whether the engine is built, which must
+    // survive a reboot, or every ignition cycle would rebuild a multi-minute engine.
+    {"JetlinkLink", {PERSISTENT | BACKUP, INT, "0"}},
+    {"JetlinkSpec", {PERSISTENT, JSON}},
+    {"JetlinkModelPointers", {PERSISTENT, JSON}},
     {"ApiCache_DriveStats", {PERSISTENT, JSON}},
     {"AutoLaneChangeBsmDelay", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"AutoLaneChangeTimer", {PERSISTENT | BACKUP, INT, "0"}},

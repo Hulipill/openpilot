@@ -19,8 +19,12 @@ ENABLED_STATES = (State.paused, *ACTIVE_STATES)
 
 GEARS_ALLOW_PAUSED_SILENT = [EventNameSP.silentWrongGear, EventNameSP.silentReverseGear, EventNameSP.silentBrakeHold,
                              EventNameSP.silentDoorOpen, EventNameSP.silentSeatbeltNotLatched, EventNameSP.silentParkBrake]
+# bigModelLoading: MADS turned on (a main-on edge, never repeated) while a big
+# model is not ready to drive waits in paused and resumes when it is, rather
+# than being refused and left off with main on (jetlink's second after a swap)
 GEARS_ALLOW_PAUSED = [EventName.wrongGear, EventName.reverseGear, EventName.brakeHold,
-                      EventName.doorOpen, EventName.seatbeltNotLatched, EventName.parkBrake]
+                      EventName.doorOpen, EventName.seatbeltNotLatched, EventName.parkBrake,
+                      EventName.bigModelLoading]
 
 
 class StateMachine:

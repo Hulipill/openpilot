@@ -38,6 +38,8 @@ from openpilot.common.file_chunker import open_file_chunked
 from openpilot.selfdrive.modeld.constants import ModelConstants, Plan
 from openpilot.selfdrive.modeld.helpers import MODELS_DIR, chestnut_present, chestnut_compiled, modeld_pkl_path, load_oob
 
+from openpilot.sunnypilot import jetlink_adapter
+
 from openpilot.sunnypilot.livedelay.helpers import LateralDelayCache
 from openpilot.sunnypilot.modeld_v2.modeld_base import ModelStateBase
 from openpilot.sunnypilot.selfdrive.controls.lib.relc import RoadEdgeLaneChangeController
@@ -235,6 +237,9 @@ def main(demo=False):
   params = Params()
   params.put_bool("ChestnutLoading", CHESTNUT)
   params.remove("ChestnutActive")
+  # before going realtime: prepare() starts tinygrad's device thread, which would inherit FIFO 54 on core 7
+  if not CHESTNUT:
+    jetlink_adapter.prepare()
 
   config_realtime_process(7, 54)
 
@@ -283,8 +288,10 @@ def main(demo=False):
   small_model = ModelState(vipc_client_main.width, vipc_client_main.height, False) if model is None or CHESTNUT else None
   if model is None:
     model = small_model
-  assert model is not None
+  if (joined := jetlink_adapter.attach(small_model, vipc_client_main.width, vipc_client_main.height)) is not None:
+    model = joined
   params.put_bool("ChestnutLoading", False)
+  assert model is not None
   cloudlog.warning(f"models loaded in {time.monotonic() - st:.1f}s, modeld starting")
 
   # messaging
@@ -403,6 +410,10 @@ def main(demo=False):
       'action_t': np.array([lat_action_t, long_action_t], dtype=np.float32),
     }
 
+    # a model can change which model drives inside run() (jetlink's joining
+    # model counts its handovers); the stall of one is not lag, as for the
+    # fallback below
+    handovers = getattr(model, 'handovers', 0)
     mt1 = time.perf_counter()
     try:
       send_chestnut = (chestnut_state is not None and
@@ -422,6 +433,8 @@ def main(demo=False):
       model_output = None
     mt2 = time.perf_counter()
     model_execution_time = mt2 - mt1
+    if getattr(model, 'handovers', 0) != handovers:
+      run_count = 0
 
     if model_output is not None:
       modelv2_send = messaging.new_message('modelV2')
@@ -440,6 +453,7 @@ def main(demo=False):
       l_lane_change_prob = desire_state[log.Desire.laneChangeLeft]
       r_lane_change_prob = desire_state[log.Desire.laneChangeRight]
       lane_change_prob = l_lane_change_prob + r_lane_change_prob
+      mdv2sp_send.modelDataV2SP.acceleratorState = getattr(model, 'big_model_state', 'none')
       left_edge, right_edge = RELC.update_and_fill(modelv2_send.modelV2, mdv2sp_send.modelDataV2SP, v_ego)
       DH.update(sm['carState'], sm['carControl'].latActive, lane_change_prob, left_edge, right_edge)
       modelv2_send.modelV2.meta.laneChangeState = DH.lane_change_state

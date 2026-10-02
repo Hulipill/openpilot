@@ -39,7 +39,16 @@ def bundles_for_source(source: str):
 
 
 def default_model(source: str) -> str:
-  return DEFAULT_BIG_MODEL if source == 'chestnut' else DEFAULT_MODEL
+  """What an empty slot runs. The big slot's is the chestnut's model in the tree
+  when a board is fitted; with none, the slot is the accelerator's, whose
+  default is its own."""
+  if source != 'chestnut':
+    return DEFAULT_MODEL
+  # read once: the params thread sets it to None when a chestnut turns up
+  jetlink = ui_state.jetlink
+  if not ui_state.chestnut_present and jetlink is not None and (name := jetlink.default_model):
+    return name
+  return DEFAULT_BIG_MODEL
 
 
 def default_model_name(source: str) -> str:
@@ -47,16 +56,36 @@ def default_model_name(source: str) -> str:
 
 
 def big_model_state() -> str | None:
-  """'failed' | 'loading' | None, from the same state the icons render."""
+  """'failed' | 'loading' | 'ready' | None, from the same state the icons render."""
   return {ChestnutState.UNCOMPILED: 'failed',
           ChestnutState.FAILED: 'failed',
-          ChestnutState.LOADING: 'loading'}.get(ui_state.chestnut_state)
+          ChestnutState.LOADING: 'loading',
+          ChestnutState.WAITING: 'ready'}.get(ui_state.chestnut_state)
+
+
+def big_model_progress() -> tuple[str, float, str] | None:
+  """(stage, 0..1, message) while an accelerator is working, else None. The message
+  is carried because a stage like "waiting for the accelerator" has no meaningful fraction"""
+  jetlink = ui_state.jetlink
+  progress = jetlink.progress if jetlink is not None else None
+  if not progress:
+    return None
+  stage = str(progress.get('stage', ''))
+  if stage in ('', 'ready'):
+    return None
+  return stage, float(progress.get('frac', 0.0)), str(progress.get('msg', ''))
 
 
 def carrying_model() -> tuple[str | None, str | None, str | None]:
   """(source, internal name, display name) of what actually drives. Runner-matched:
   when a Default big cannot carry, stock modeld runs the Default small, never the
   small slot's pick; a custom big has no automatic fallback yet -> (None, None, None)."""
+  # only when no board is fitted does the chestnut state describe the jetlink view
+  if not ui_state.chestnut_present and ui_state.chestnut_state == ChestnutState.ACTIVE:
+    jetlink = ui_state.jetlink
+    name = jetlink.active_model if jetlink is not None else None
+    if name is not None:
+      return 'accelerator', name, name
   source = active_source()
   if source == "chestnut":
     bundle = get_selected_bundle(ui_state.params, "chestnut")
@@ -85,6 +114,10 @@ def queued_name(current_ref) -> str | None:
   return None
 
 
+def slot_bundle(source: str):
+  return get_selected_bundle(ui_state.params, source)
+
+
 def model_info() -> tuple[str, str, str]:
   """returns (active source, active model name, other model name)
 
@@ -93,8 +126,8 @@ def model_info() -> tuple[str, str, str]:
   would flash the wrong model."""
   source = active_source()
   other = "qcom" if source == "chestnut" else "chestnut"
-  active_bundle = get_selected_bundle(ui_state.params, source)
-  other_bundle = get_selected_bundle(ui_state.params, other)
+  active_bundle = slot_bundle(source)
+  other_bundle = slot_bundle(other)
 
   active_name = active_bundle.displayName if active_bundle else default_model_name(source)
   other_name = other_bundle.displayName if other_bundle else default_model_name(other)

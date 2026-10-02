@@ -17,7 +17,7 @@ from openpilot.common.hardware.hw import Paths
 
 from openpilot.cereal import messaging, custom
 from openpilot.sunnypilot.models.fetcher import ModelFetcher
-from openpilot.sunnypilot.models.helpers import (ACTIVE_BUNDLE_KEYS, get_active_bundle, get_selected_bundle,
+from openpilot.sunnypilot.models.helpers import (ACTIVE_BUNDLE_KEYS, _bundle_is_valid_locally, get_active_bundle, get_selected_bundle,
                                                   resolve_bundle_by_ref, validate_active_bundles, verify_file)
 
 # (connect, read) seconds. read is per-request inactivity, not a total cap
@@ -44,6 +44,7 @@ class ModelManagerSP:
     self._chunk_size = 128 * 1000  # 128 KB chunks
     self._download_start_times: dict[str, float] = {}  # Track start time per model
     self._download_ref: bytes | str | None = None
+    self._big_files_checked: set[str] = set()  # refs whose files were looked for with a chestnut fitted
 
   def _download_interrupted(self) -> bool:
     # only removal cancels: a different ref is a queued selection that
@@ -257,14 +258,16 @@ class ModelManagerSP:
   async def _download_bundle(self, model_bundle: custom.ModelManagerSP.ModelBundle, destination_path: str, source: str) -> None:
     self.selected_bundle = model_bundle
     self.selected_bundle.status = custom.ModelManagerSP.DownloadStatus.downloading
-    for model in self.selected_bundle.models:
+    # the big model's files are only fetched where a chestnut can run them; see _fetch_big_model_files
+    models = [] if source == "chestnut" and not self.chestnut_present else self.selected_bundle.models
+    for model in models:
       model.artifact.downloadProgress.status = custom.ModelManagerSP.DownloadStatus.downloading
     self._report_status()
     os.makedirs(destination_path, exist_ok=True)
 
     try:
       seen_artifacts: set[str] = set()
-      for model in self.selected_bundle.models:
+      for model in models:
         artifact = model.artifact
         if not artifact.fileName:
           continue
@@ -293,6 +296,27 @@ class ModelManagerSP:
   def download(self, model_bundle: custom.ModelManagerSP.ModelBundle, destination_path: str, source: str) -> None:
     """Main entry point for downloading a model bundle"""
     asyncio.run(self._download_bundle(model_bundle, destination_path, source))
+
+  def _fetch_big_model_files(self) -> None:
+    """The big-model slot is a choice for whichever hardware runs it. A chestnut
+    needs the bundle's files; an accelerator fetches its own form of the model
+    by the bundle's ref. So without a chestnut the pick is stored without its
+    files (_download_bundle), validation never resets the slot over missing
+    files (helpers.validate_active_bundles), and here they are fetched once a
+    chestnut is fitted, or again if they went missing. Once per ref per
+    process, so a download that keeps failing does not spin."""
+    if not self.chestnut_present or self.params.get("ModelManager_DownloadRef") is not None:
+      return
+    raw = self.params.get(ACTIVE_BUNDLE_KEYS["chestnut"])
+    if not isinstance(raw, dict) or raw.get("ref") in self._big_files_checked:
+      return   # the raw ref first: parsing the slot every tick is not worth a set lookup
+    bundle = get_selected_bundle(self.params, "chestnut")
+    if bundle is None:
+      return
+    self._big_files_checked.add(bundle.ref)
+    if not _bundle_is_valid_locally(bundle):
+      cloudlog.warning(f"Fetching the files of the selected big model {bundle.displayName} for the chestnut")
+      self.params.put("ModelManager_DownloadRef", bundle.ref)
 
   def _process_download_requests(self) -> None:
     # loops so a ref queued during a download starts in the same tick, without
@@ -328,11 +352,12 @@ class ModelManagerSP:
         validate_active_bundles(self.params, self.source_models)
         self.active_bundle = get_active_bundle(self.params, chestnut=self.chestnut_present)
 
-        if get_selected_bundle(self.params, "chestnut") is not None and get_selected_bundle(self.params, "qcom") is None:
+        if self.chestnut_present and get_selected_bundle(self.params, "chestnut") is not None and get_selected_bundle(self.params, "qcom") is None:
           if self.params.get("ModelManager_DownloadRef") is None:
             from openpilot.sunnypilot.models.model_name import DEFAULT_MODEL_REF
             self.params.put("ModelManager_DownloadRef", DEFAULT_MODEL_REF)
 
+        self._fetch_big_model_files()
         self._process_download_requests()
 
         if self.params.get("ModelManager_ClearCache"):
