@@ -8,7 +8,7 @@ See the LICENSE.md file in the root directory for more details.
 import io
 import requests
 
-from openpilot.common.file_chunker import get_chunk_name
+from openpilot.common.file_chunker import get_chunk_name, get_manifest_path
 from openpilot.common.hardware import hw
 from openpilot.common.test import OpenpilotTestCase
 from openpilot.sunnypilot.modeld_v2.helpers import dump_oob
@@ -49,6 +49,8 @@ class TestFallback(OpenpilotTestCase):
 
     for bundle in (big_bundle, small_bundle):
       artifact = bundle.models[0].artifact
+      if len(artifact.chunks) > 1:
+        (tmp_path / get_manifest_path(artifact.fileName)).write_text(str(len(artifact.chunks)))
       for i in range(len(artifact.chunks)):
         (tmp_path / get_chunk_name(artifact.fileName, i, len(artifact.chunks))).write_bytes(oob_bytes if i == 0 else b"")
 

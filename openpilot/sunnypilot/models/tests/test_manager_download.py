@@ -30,6 +30,20 @@ from openpilot.sunnypilot.models.helpers import (get_active_bundle, get_active_s
                                                   resolve_bundle_by_ref, validate_active_bundles)
 from openpilot.sunnypilot.models.manager import ModelManagerSP
 
+# the model manager's catalog as fetched, never the one an installed jetlink extends
+# with newer catalogs (jetlink_adapter.extend_catalog): that depends on the checkout and
+# reaches the network
+_catalog_as_fetched = mock.patch("openpilot.sunnypilot.jetlink_adapter.should_extend_catalog", return_value=False)
+
+
+def setUpModule():
+  _catalog_as_fetched.start()
+
+
+def tearDownModule():
+  _catalog_as_fetched.stop()
+
+
 CHUNK_BODIES = [b'A' * 5000, b'B' * 5000, b'C' * 3000]
 WHOLE_BODY = b'Z' * 9000
 
