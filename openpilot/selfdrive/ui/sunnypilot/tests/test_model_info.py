@@ -1,3 +1,4 @@
+from typing import Any
 """
 Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
 
@@ -20,9 +21,10 @@ V3_REF = "bf3e3631b3f91d92a1020a5e0dd4298b93ff4244"
 
 def _jetlink(**fields) -> Status:
   """jetlink's snapshot as the UI's params pass takes it."""
-  base = {'enabled': False, 'mode': 'off', 'transport': 'USB', 'present': False, 'port': None, 'ready': False,
-          'reason': None, 'progress': None, 'model': None, 'default_model': None}
-  return Status(**{**base, **fields})  # type: ignore
+  values: dict[str, Any] = {'enabled': False, 'mode': 'off', 'transport': 'USB', 'present': False, 'port': None, 'ready': False,
+                            'reason': None, 'progress': None, 'model': None, 'default_model': None}
+  values.update(fields)
+  return Status(**values)
 
 
 def _raw_bundle(ref: str) -> dict:

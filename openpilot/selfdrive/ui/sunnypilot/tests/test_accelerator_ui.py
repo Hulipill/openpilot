@@ -1,3 +1,4 @@
+from typing import Any
 """
 Copyright (c) 2026-, Zeph Leggett.
 
@@ -52,11 +53,12 @@ class UITest(OpenpilotTestCase):
 def snapshot(**fields):
   """jetlink's Status, nothing to show unless a field says so."""
   from jetlink.openpilot import Status
-  base = {'enabled': False, 'mode': 'off', 'transport': 'USB', 'present': False, 'port': None, 'ready': False,
-          'reason': None, 'progress': None, 'model': None, 'default_model': None}
+  values: dict[str, Any] = {'enabled': False, 'mode': 'off', 'transport': 'USB', 'present': False, 'port': None, 'ready': False,
+                            'reason': None, 'progress': None, 'model': None, 'default_model': None}
   if fields.get('enabled'):
-    base['mode'] = 'usb'
-  return Status(**{**base, **fields})  # type: ignore
+    values['mode'] = 'usb'
+  values.update(fields)
+  return Status(**values)
 
 
 @contextmanager
