@@ -254,7 +254,7 @@ class ModeldSeam:
       wrapped = 'def _block():\n' + textwrap.indent(block, '  ') + '\n  return locals()\n'
       # exec of modeld's own source is the point of this file.
       exec(compile(wrapped, str(MODELD), 'exec'), scope)
-      scope.update(scope.pop('_block')())
+      scope.update(scope.pop('_block')())  # type: ignore
     scope['environ'] = env
     return scope
 
@@ -365,7 +365,7 @@ class Footprint:
 
   def test_a_chestnut_block_never_reaches_the_adapter(self):
     for stmt in ast.walk(self.tree):
-      if _tests_name(stmt, 'CHESTNUT'):
+      if isinstance(stmt, ast.stmt) and _tests_name(stmt, 'CHESTNUT'):
         # the whole statement: the link attaches after the chestnut load, not as its `elif`
         names = {n.id for n in ast.walk(stmt) if isinstance(n, ast.Name)}
         self.assertNotIn(ADAPTER, names, f"an `if CHESTNUT:` block at line {stmt.lineno} reaches the adapter")
@@ -559,7 +559,7 @@ class HardwaredPowersOffWithoutStopping(OpenpilotTestCase):
     self.assertLess(body.index(check), publish, "deviceState is no longer published after the shutdown check")
 
     def code(*nodes):
-      return compile('\n'.join(textwrap.dedent(ast.get_source_segment(src, n, padded=True)) for n in nodes),
+      return compile('\n'.join(textwrap.dedent(ast.get_source_segment(src, n, padded=True) or '') for n in nodes),
                      str(HARDWARED), 'exec')
     self.init = code(init)
     self.loop = code(powering_off, body[should], body[should + 1], start, check)

@@ -67,7 +67,7 @@ class JetlinkTest(OpenpilotTestCase):
 class TestBigCatalog(JetlinkTest):
   def merged(self, newer=NEWER):
     probe_result = {'side_effect': newer} if isinstance(newer, Exception) else {'return_value': newer}
-    with mock.patch('jetlink.registry.catalog.fetch_catalogs', **probe_result) as probe:
+    with mock.patch('jetlink.registry.catalog.fetch_catalogs', **probe_result) as probe:  # type: ignore
       out = jetlink_adapter.extend_catalog(PINNED)
     return out, probe
 
@@ -76,7 +76,7 @@ class TestBigCatalog(JetlinkTest):
     probe.assert_called_once_with()
     bundles = ModelParser.parse_models(out)
     self.assertEqual([b.ref for b in bundles], [OLD, NEW])
-    picked, source = resolve_bundle_by_ref(NEW, {'chestnut': bundles})
+    picked, source = resolve_bundle_by_ref(NEW, {'chestnut': bundles})  # type: ignore
     self.assertEqual((picked.displayName, source), ('Cinque Terre V4', 'chestnut'))
     # nothing for a chestnut to fetch
     self.assertEqual(list(picked.models), [])
@@ -280,7 +280,7 @@ class RefreshTest(JetlinkTest):
     """Pick a big model as the manager stores it without a chestnut: the catalog's
     entry, files not fetched (ModelManagerSP._download_bundle)."""
     bundles = ModelParser.parse_models(self.params.get(KEYS.catalog))
-    self.params.put(KEYS.big_model, resolve_bundle_by_ref(ref, {"chestnut": bundles})[0].to_dict(), block=True)
+    self.params.put(KEYS.big_model, resolve_bundle_by_ref(ref, {"chestnut": bundles})[0].to_dict(), block=True)  # type: ignore
 
   def marks(self) -> dict:
     """What the owner stats to decide a provisioning run is due."""

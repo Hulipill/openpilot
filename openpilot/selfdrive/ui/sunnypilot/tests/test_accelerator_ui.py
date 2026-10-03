@@ -56,7 +56,7 @@ def snapshot(**fields):
           'reason': None, 'progress': None, 'model': None, 'default_model': None}
   if fields.get('enabled'):
     base['mode'] = 'usb'
-  return Status(**{**base, **fields})
+  return Status(**{**base, **fields})  # type: ignore
 
 
 @contextmanager
@@ -189,7 +189,7 @@ class TestUIStateJetlinkView(UITest):
         ui_state._update_chestnut_state()
       assert ui_state.chestnut_state == ChestnutState.DISCONNECTED
 
-      ui_state.sm = FakeSM(board=False, big=True, alive=True, recv=1, state='running')
+      ui_state.sm = FakeSM(board=False, big=True, alive=True, recv=1, state='running')  # type: ignore
       UIStateSP.update(ui_state)
       with jetlink(present=True, ready=True, enabled=True):
         ui_state._update_chestnut_state()

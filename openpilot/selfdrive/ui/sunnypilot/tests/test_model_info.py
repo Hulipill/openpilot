@@ -22,7 +22,7 @@ def _jetlink(**fields) -> Status:
   """jetlink's snapshot as the UI's params pass takes it."""
   base = {'enabled': False, 'mode': 'off', 'transport': 'USB', 'present': False, 'port': None, 'ready': False,
           'reason': None, 'progress': None, 'model': None, 'default_model': None}
-  return Status(**{**base, **fields})
+  return Status(**{**base, **fields})  # type: ignore
 
 
 def _raw_bundle(ref: str) -> dict:

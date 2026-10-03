@@ -185,7 +185,7 @@ class UIStateSP:
     # on the 5 Hz params pass, not per frame in a layout; a fitted chestnut owns chestnut_state
     self.jetlink = None if self.sm['deviceState'].chestnutPresent else jetlink_adapter.status()
     # the Jetson configures the gadget ~25 s after a cold boot, after the one-shot
-    # usb_unknown decision; recognising it late still clears "unknown"
+    # usb_unknown decision; recognizing it late still clears "unknown"
     if (view := self.jetlink_view) is not None and view.present and self.usb_unknown:
       self.usb_unknown = False
     self.blindspot = self.params.get_bool("BlindSpot")

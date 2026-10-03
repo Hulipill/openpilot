@@ -15,6 +15,7 @@ import sys
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 from unittest import mock
 
 import jetlink.openpilot as jl
@@ -322,7 +323,7 @@ class TestManagerStartsADeadOwnerAgain(OpenpilotTestCase):
     def make(**kwargs):
       made.append(FakeProc(**kwargs))
       return made[-1]
-    patches = [mock.patch.object(process, 'Process', side_effect=make), mock.patch.object(proc, 'proc', None),
+    patches: list[Any] = [mock.patch.object(process, 'Process', side_effect=make), mock.patch.object(proc, 'proc', None),
                mock.patch.object(proc, 'shutting_down', False),
                mock.patch.object(proc, 'should_run', lambda started, params, CP: should_run)]
     if hasattr(proc, 'now'):
@@ -333,7 +334,7 @@ class TestManagerStartsADeadOwnerAgain(OpenpilotTestCase):
       self.addCleanup(patch.stop)
 
     def loop(seconds: float = 0.5):
-      process.ensure_running([proc], False, params=None, CP=None)
+      process.ensure_running([proc], False, params=None, CP=None)  # type: ignore
       self.clock += seconds
     return made, loop
 

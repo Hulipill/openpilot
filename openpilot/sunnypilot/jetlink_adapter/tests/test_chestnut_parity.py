@@ -94,7 +94,7 @@ class TestPickKeptDefaultDrives(OpenpilotTestCase):
     self.store = store
 
   def active(self, chestnut=True):
-    return helpers.get_active_bundle(self.store, chestnut=chestnut)
+    return helpers.get_active_bundle(self.store, chestnut=chestnut)  # type: ignore
 
   def test_missing_files_drive_the_default_and_keep_the_pick(self):
     self.assertIsNone(self.active())
