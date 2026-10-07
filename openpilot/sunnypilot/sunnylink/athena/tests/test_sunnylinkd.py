@@ -51,8 +51,8 @@ class TestSunnylinkdMethods(OpenpilotTestCase):
     # verify content
     self.assertEqual(len(self.saved_params), 2)
     keys_saved = [p[0] for p in self.saved_params]
-    self.assertIn("SpeedLimitOffset", keys_saved)
-    self.assertIn("MyCustomParam", keys_saved)
+    assert "SpeedLimitOffset" in keys_saved
+    assert "MyCustomParam" in keys_saved
 
   def test_saveParams_mixed(self):
     mixed_params = {

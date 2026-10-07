@@ -12,6 +12,7 @@ from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.cereal import log, custom
 
 EventName = log.OnroadEvent.EventName
+DecState = custom.LongitudinalPlanSP.DynamicExperimentalControl.DynamicExperimentalControlState
 
 # Constants
 SET_SPEED_NA = 255
@@ -269,7 +270,7 @@ class HudRenderer(Widget):
     sm = ui_state.sm
     experimental_mode = sm['selfdriveState'].experimentalMode
     if gui_app.sunnypilot_ui() and sm.seen['longitudinalPlanSP'] and sm['longitudinalPlanSP'].dec.active:
-      experimental_mode = experimental_mode and sm['longitudinalPlanSP'].dec.state == custom.LongitudinalPlanSP.DynamicExperimentalControl.DynamicExperimentalControlState.blended
+      experimental_mode = experimental_mode and sm['longitudinalPlanSP'].dec.state == DecState.blended
 
     exp_txt = self._txt_experimental if experimental_mode else self._txt_experimental_white
     exp_pos_x = int(rect.x + rect.width - 21 - exp_txt.width / 2)
