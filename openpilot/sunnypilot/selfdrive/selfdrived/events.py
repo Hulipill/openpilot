@@ -282,8 +282,8 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
   # soft disable. Raised for 5 s (accelerator_events); a disengage ends it
   EventNameSP.bigModelLinkLost: {
     ET.WARNING: Alert(
-      "TAKE CONTROL",
-      "Big model lost, small model driving",
+      "Big Model Lost",
+      "Using small model",
       AlertStatus.userPrompt, AlertSize.mid,
       Priority.MID, VisualAlert.steerRequired, AudibleAlert.warningSoft, .2),
   },

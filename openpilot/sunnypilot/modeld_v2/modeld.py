@@ -14,7 +14,6 @@ import threading
 import time
 from setproctitle import setproctitle
 
-from collections.abc import Callable
 import openpilot.cereal.messaging as messaging
 from openpilot.common.hardware import COMMA_HARDWARE
 from openpilot.selfdrive.modeld.helpers import chestnut_present
@@ -129,6 +128,7 @@ class ModelState(ModelStateBase):
     self._road_key = self.adapter._road_key
     self._wide_key = self.adapter._wide_key
     self.frame_buf_params = self.adapter.frame_buf_params
+    self.input_queues = getattr(self.adapter, 'input_queues', {})
 
     is_20hz = bundle.is20hz if bundle else self._combined_model_type in ('split', 'multi_policy')
     if is_20hz:
@@ -332,7 +332,8 @@ def main(demo=False):
   # messaging
   pub_socks = ["modelV2", "drivingModelData", "cameraOdometry", "modelDataV2SP"] + (["chestnutGpuState"] if CHESTNUT else [])
   pm = PubMaster(pub_socks)
-  sm = SubMaster(["deviceState", "carState", "narrowRoadCameraState", "extrinsicsCalibration", "driverMonitoringState", "carControl", "lateralDelay"])
+  sm = SubMaster(["deviceState", "carState", "narrowRoadCameraState", "extrinsicsCalibration",
+                  "driverMonitoringState", "carControl", "carControlSP", "lateralDelay"])
 
   publish_state = PublishState()
   chestnut_state = ChestnutGpuState(pm, model.chestnut) if CHESTNUT else None
@@ -458,7 +459,9 @@ def main(demo=False):
     # a model can change which model drives inside run() (jetlink's joining
     # model counts its handovers); the stall of one is not lag, as for the
     # fallback below, and nor are the drops of the frame it happens on. The
-    # joining model hands a large model back on this share of dropped frames
+    # joining model hands a large model back on this share of dropped frames,
+    # and swaps one in only while nothing is in control
+    model.in_control = jetlink_adapter.in_control(sm)
     model.frame_drop_ratio = frame_drop_ratio
     handovers = getattr(model, 'handovers', 0)
     mt1 = time.perf_counter()

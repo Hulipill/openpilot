@@ -11,3 +11,4 @@ class ModelStateBase:
   def __init__(self):
     self.lat_delay = Params().get("LagdValueCache", return_default=True)
     self.frame_drop_ratio: float = 0.0
+    self.in_control: bool = False

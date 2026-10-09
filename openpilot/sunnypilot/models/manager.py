@@ -257,12 +257,12 @@ class ModelManagerSP:
 
   async def _download_bundle(self, model_bundle: custom.ModelManagerSP.ModelBundle, destination_path: str, source: str) -> None:
     self.selected_bundle = model_bundle
-    self.selected_bundle.status = custom.ModelManagerSP.DownloadStatus.downloading
-    # the big model's files are only fetched where a chestnut can run them; see _fetch_big_model_files
     models = [] if source == "chestnut" and not self.chestnut_present else self.selected_bundle.models
-    for model in models:
-      model.artifact.downloadProgress.status = custom.ModelManagerSP.DownloadStatus.downloading
-    self._report_status()
+    if models:
+      self.selected_bundle.status = custom.ModelManagerSP.DownloadStatus.downloading
+      for model in models:
+        model.artifact.downloadProgress.status = custom.ModelManagerSP.DownloadStatus.downloading
+      self._report_status()
     os.makedirs(destination_path, exist_ok=True)
 
     try:

@@ -139,6 +139,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"UptimeOnroad", {PERSISTENT, FLOAT, "0.0"}},
     {"ChestnutActive", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION | CLEAR_ON_IGNITION_ON, BOOL}},
     {"ChestnutLoading", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION | CLEAR_ON_IGNITION_ON, BOOL}},
+    {"ChestnutModelError", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION | CLEAR_ON_IGNITION_ON, BOOL}},
     {"Version", {PERSISTENT, STRING}},
 	
 	// --- infiniteCable params --- //
@@ -169,6 +170,9 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"JetlinkLink", {PERSISTENT | BACKUP, INT, "0"}},
     {"JetlinkSpec", {PERSISTENT, JSON}},
     {"JetlinkModelPointers", {PERSISTENT, JSON}},
+    // an iPhone on a direct cable charges from the comma; off by default, some
+    // lose the link once the comma powers them
+    {"JetlinkChargePhone", {PERSISTENT, BOOL, "0"}},
     {"ApiCache_DriveStats", {PERSISTENT, JSON}},
     {"AutoLaneChangeBsmDelay", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"AutoLaneChangeTimer", {PERSISTENT | BACKUP, INT, "0"}},

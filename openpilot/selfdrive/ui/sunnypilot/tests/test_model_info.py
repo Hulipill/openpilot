@@ -1,4 +1,3 @@
-from typing import Any
 """
 Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
 
@@ -21,10 +20,9 @@ V3_REF = "bf3e3631b3f91d92a1020a5e0dd4298b93ff4244"
 
 def _jetlink(**fields) -> Status:
   """jetlink's snapshot as the UI's params pass takes it."""
-  values: dict[str, Any] = {'enabled': False, 'mode': 'off', 'transport': 'USB', 'present': False, 'port': None, 'ready': False,
-                            'reason': None, 'progress': None, 'model': None, 'default_model': None}
-  values.update(fields)
-  return Status(**values)
+  base = {'enabled': False, 'mode': 'off', 'transport': 'USB', 'present': False, 'port': None, 'ready': False,
+          'reason': None, 'progress': None, 'model': None, 'default_model': None}
+  return Status(**{**base, **fields})
 
 
 def _raw_bundle(ref: str) -> dict:
@@ -39,8 +37,8 @@ def _raw_bundle(ref: str) -> dict:
 
 class TestCarryingModel(OpenpilotTestCase):
   """What the UI names as driving has to be what manager runs. The small model is
-  the model manager's whatever the accelerator link says: the stored qcom bundle
-  drives until the accelerator joins, and again if it goes."""
+  the model manager's whatever the Jetlink setting says: the stored qcom bundle
+  drives until jetlink joins, and again if it goes."""
 
   def setUp(self):
     super().setUp()

@@ -36,7 +36,7 @@ from openpilot.selfdrive.modeld.parse_model_outputs import Parser
 from openpilot.selfdrive.modeld.fill_model_msg import fill_model_msg, fill_driving_model_data, fill_pose_msg, PublishState
 from openpilot.common.file_chunker import open_file_chunked
 from openpilot.selfdrive.modeld.constants import ModelConstants, Plan
-from openpilot.selfdrive.modeld.helpers import MODELS_DIR, chestnut_present, chestnut_compiled, modeld_pkl_path, load_oob
+from openpilot.selfdrive.modeld.helpers import MODELS_DIR, chestnut_present, chestnut_compiled, chestnut_ready, modeld_pkl_path, load_oob
 
 from openpilot.sunnypilot import jetlink_adapter
 
@@ -80,7 +80,7 @@ def get_action_from_model(model_output: dict[str, np.ndarray], prev_action: log.
                                 shouldStop=bool(stop))
 
 
-class ChestnutGpuState:
+class ChestnutState:
   # GPU metrics require modeld's GPU context
   def __init__(self, pm: PubMaster, big: bool):
     self.pm = pm
@@ -124,6 +124,9 @@ class ChestnutGpuState:
 
     msg.valid = not self.big or (self.valid and bool(self.metrics))
     self.pm.send('chestnutGpuState', msg)
+
+
+ChestnutGpuState = ChestnutState
 
 
 class FrameMeta:
@@ -231,12 +234,25 @@ class ModelState(ModelStateBase):
 def main(demo=False):
   cloudlog.warning("modeld init")
 
-  CHESTNUT = chestnut_present() and chestnut_compiled()
+  chestnut_available = chestnut_present() and chestnut_compiled()
+  CHESTNUT = False
+  if chestnut_available:
+    poller = messaging.Poller()
+    sock = messaging.sub_sock("chestnutState", poller=poller, conflate=True)
+    deadline = time.monotonic() + 4. / SERVICE_LIST['deviceState'].frequency
+    while not CHESTNUT and (remaining := deadline - time.monotonic()) > 0.:
+      if not poller.poll(round(remaining * 1000)):
+        break
+      msg = messaging.recv_one_or_none(sock)
+      CHESTNUT = msg is not None and msg.valid and chestnut_ready(msg.chestnutState)
   if CHESTNUT:
     os.environ['HCQDEV_WAIT_TIMEOUT_MS'] = '3000'
   params = Params()
   params.put_bool("ChestnutLoading", CHESTNUT)
-  params.remove("ChestnutActive")
+  if chestnut_available and not CHESTNUT:
+    params.put_bool("ChestnutActive", False)
+  else:
+    params.remove("ChestnutActive")
   # before going realtime: prepare() starts tinygrad's device thread, which would inherit FIFO 54 on core 7
   if not CHESTNUT:
     jetlink_adapter.prepare()
@@ -297,11 +313,12 @@ def main(demo=False):
   # messaging
   pub_socks = ["modelV2", "drivingModelData", "cameraOdometry", "modelDataV2SP"] + (["chestnutGpuState"] if CHESTNUT else [])
   pm = PubMaster(pub_socks)
-  sm = SubMaster(["deviceState", "carState", "narrowRoadCameraState", "extrinsicsCalibration", "driverMonitoringState", "carControl", "lateralDelay"])
+  sm = SubMaster(["deviceState", "carState", "narrowRoadCameraState", "extrinsicsCalibration",
+                  "driverMonitoringState", "carControl", "carControlSP", "lateralDelay"])
 
   publish_state = PublishState()
   params = Params()
-  chestnut_state = ChestnutGpuState(pm, model.chestnut) if CHESTNUT else None
+  chestnut_state = ChestnutState(pm, model.chestnut) if CHESTNUT else None
 
   # setup filter to track dropped frames
   frame_dropped_filter = FirstOrderFilter(0., 10., 1. / ModelConstants.MODEL_RUN_FREQ)
@@ -413,7 +430,9 @@ def main(demo=False):
     # a model can change which model drives inside run() (jetlink's joining
     # model counts its handovers); the stall of one is not lag, as for the
     # fallback below, and nor are the drops of the frame it happens on. The
-    # joining model hands a large model back on this share of dropped frames
+    # joining model hands a large model back on this share of dropped frames,
+    # and swaps one in only while nothing is in control
+    model.in_control = jetlink_adapter.in_control(sm)
     model.frame_drop_ratio = frame_drop_ratio
     handovers = getattr(model, 'handovers', 0)
     mt1 = time.perf_counter()
