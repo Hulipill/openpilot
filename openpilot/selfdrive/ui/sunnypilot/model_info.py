@@ -4,15 +4,31 @@ Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
 This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
-from openpilot.selfdrive.ui.ui_state import ui_state
+import contextlib
+import os
+import time
+
+from openpilot.common.hardware.hw import Paths
+from openpilot.selfdrive.ui.ui_state import ui_state, ChestnutState
 from openpilot.sunnypilot.models.fetcher import get_cached_bundles
 from openpilot.sunnypilot.models.helpers import get_active_source, get_selected_bundle, resolve_bundle_by_ref
 from openpilot.sunnypilot.models.model_name import DEFAULT_BIG_MODEL, DEFAULT_MODEL
 
 
+def model_cache_size_mb() -> float:
+  """Bytes on disk under the model cache directory, in MB."""
+  model_root = Paths.model_root()
+  total = 0
+  if os.path.isdir(model_root):
+    for name in os.listdir(model_root):
+      with contextlib.suppress(OSError):
+        total += os.path.getsize(os.path.join(model_root, name))
+  return total / (1024 ** 2)
+
+
 def active_source() -> str:
-  return get_active_source(usbgpu=ui_state.usbgpu,
-                           usbgpu_active=ui_state.usbgpu_active, usbgpu_loading=ui_state.usbgpu_loading,
+  return get_active_source(chestnut=ui_state.chestnut_present,
+                           chestnut_active=ui_state.chestnut_active, chestnut_loading=ui_state.chestnut_loading,
                            offroad=ui_state.is_offroad())
 
 
@@ -23,7 +39,7 @@ def bundles_for_source(source: str):
 
 
 def default_model(source: str) -> str:
-  return DEFAULT_BIG_MODEL if source == 'usbgpu' else DEFAULT_MODEL
+  return DEFAULT_BIG_MODEL if source == 'chestnut' else DEFAULT_MODEL
 
 
 def default_model_name(source: str) -> str:
@@ -31,13 +47,10 @@ def default_model_name(source: str) -> str:
 
 
 def big_model_state() -> str | None:
-  """'failed' | 'loading' | None, mirroring the sidebar's detection (#1969)."""
-  if ui_state.started and ui_state.usbgpu and ui_state.big_model_failed:
-    return 'failed'
-  big_selected = ui_state.usbgpu_compiled or ui_state.model_runner_tinygrad
-  if ui_state.usbgpu_loading or (big_selected and ui_state.started and ui_state.usbgpu_active is None):
-    return 'loading'
-  return None
+  """'failed' | 'loading' | None, from the same state the icons render."""
+  return {ChestnutState.UNCOMPILED: 'failed',
+          ChestnutState.FAILED: 'failed',
+          ChestnutState.LOADING: 'loading'}.get(ui_state.chestnut_state)
 
 
 def carrying_model() -> tuple[str | None, str | None, str | None]:
@@ -45,14 +58,14 @@ def carrying_model() -> tuple[str | None, str | None, str | None]:
   when a Default big cannot carry, stock modeld runs the Default small, never the
   small slot's pick; a custom big has no automatic fallback yet -> (None, None, None)."""
   source = active_source()
-  if source == "usbgpu":
-    bundle = get_selected_bundle(ui_state.params, "usbgpu")
+  if source == "chestnut":
+    bundle = get_selected_bundle(ui_state.params, "chestnut")
     if bundle:
-      return "usbgpu", bundle.internalName, bundle.displayName
-    name = default_model_name("usbgpu")
-    return "usbgpu", name, name
-  if ui_state.usbgpu:
-    if get_selected_bundle(ui_state.params, "usbgpu") is None:
+      return "chestnut", bundle.internalName, bundle.displayName
+    name = default_model_name("chestnut")
+    return "chestnut", name, name
+  if ui_state.chestnut_present:
+    if get_selected_bundle(ui_state.params, "chestnut") is None:
       name = default_model_name("qcom")
       return "qcom", name, name
     return None, None, None
@@ -66,7 +79,7 @@ def carrying_model() -> tuple[str | None, str | None, str | None]:
 def queued_name(current_ref) -> str | None:
   ref = ui_state.params.get("ModelManager_DownloadRef")
   if ref and ref != current_ref:
-    source_bundles = {source: bundles_for_source(source) for source in ("qcom", "usbgpu")}
+    source_bundles = {source: bundles_for_source(source) for source in ("qcom", "chestnut")}
     if resolved := resolve_bundle_by_ref(ref, source_bundles):
       return resolved[0].internalName
   return None
@@ -79,10 +92,29 @@ def model_info() -> tuple[str, str, str]:
   manager republishes a tick after a chestnut change, so the stale bundle
   would flash the wrong model."""
   source = active_source()
-  other = "qcom" if source == "usbgpu" else "usbgpu"
+  other = "qcom" if source == "chestnut" else "chestnut"
   active_bundle = get_selected_bundle(ui_state.params, source)
   other_bundle = get_selected_bundle(ui_state.params, other)
 
   active_name = active_bundle.displayName if active_bundle else default_model_name(source)
   other_name = other_bundle.displayName if other_bundle else default_model_name(other)
   return source, active_name, other_name
+
+
+# mirrors the manager's ModelCache keys; the manager restamps them on a successful fetch
+MODEL_SYNC_KEYS = ("ModelManager_LastSyncTime", "ModelManager_LastSyncTime_Chestnut")
+MODEL_SYNC_TIMEOUT = 20.0
+
+
+def refresh_model_list() -> None:
+  # zeroing the sync keys makes the manager refetch each manifest on its next tick
+  for key in MODEL_SYNC_KEYS:
+    ui_state.params.put(key, 0)
+
+
+def refresh_in_progress(started_at: float | None) -> bool:
+  """Whether a user refresh is still outstanding. A failed fetch never restamps the
+  sync keys, so the spinner is bounded by MODEL_SYNC_TIMEOUT rather than sticking."""
+  if started_at is None or time.monotonic() - started_at > MODEL_SYNC_TIMEOUT:
+    return False
+  return not all(ui_state.params.get(key) for key in MODEL_SYNC_KEYS)

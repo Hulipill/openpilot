@@ -19,9 +19,8 @@ class ICTogglesLayoutMici(NavScroller):
     force_rhd_bsm               = BigParamControl("VW: Force RHD for BSM", "ForceRHDForBSM")
     disable_car_steer_alerts    = BigParamControl("VW: Disable Car Steer Alert Chime", "DisableCarSteerAlerts")
     enable_smooth_steer         = BigParamControl("Steer Smoothing", "EnableSmoothSteer")
-    enable_dark_mode            = BigParamControl("Dark Mode", "DarkMode")
-    enable_onroad_screen_timer  = BigParamControl("Onroad Screen Timeout", "DisableScreenTimer")
     enable_accel_bar            = BigParamControl("Enable Accel Bar", "ShowAccelBar")
+    show_egpu_temperatures      = BigParamControl("Show eGPU Temperatures", "ICShowEgpuTemperatures")
     enable_curvatured           = BigParamControl("Enable Dynamic Steering Learner", "EnableCurvatureD")
     show_curvatured_graph       = BigParamControl("Show Dynamic Steering Learner Graph", "ShowDynamicSteeringLearnerGraph")
 
@@ -39,9 +38,8 @@ class ICTogglesLayoutMici(NavScroller):
       force_rhd_bsm,
       disable_car_steer_alerts,
       enable_smooth_steer,
-      enable_dark_mode,
-      enable_onroad_screen_timer,
       enable_accel_bar,
+      show_egpu_temperatures,
       enable_curvatured,
       show_curvatured_graph,
     ])
@@ -57,9 +55,8 @@ class ICTogglesLayoutMici(NavScroller):
       ("ForceRHDForBSM", force_rhd_bsm),
       ("DisableCarSteerAlerts", disable_car_steer_alerts),
       ("EnableSmoothSteer", enable_smooth_steer),
-      ("DarkMode", enable_dark_mode),
-      ("DisableScreenTimer", enable_onroad_screen_timer),
       ("ShowAccelBar", enable_accel_bar),
+      ("ICShowEgpuTemperatures", show_egpu_temperatures),
       ("EnableCurvatureD", enable_curvatured),
       ("ShowDynamicSteeringLearnerGraph", show_curvatured_graph),
     )

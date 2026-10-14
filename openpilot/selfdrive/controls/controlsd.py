@@ -51,7 +51,7 @@ class Controls(ControlsExt):
 
     self.CI = interfaces[self.CP.carFingerprint](self.CP, self.CP_SP, self.CP_IC)
 
-    ic_sm_services = ['lateralCurvatureParameters', 'longitudinalPlanIC']
+    ic_sm_services = ['carStateIC', 'lateralCurvatureParameters', 'longitudinalPlanIC']
     ic_pm_services = ['carControlIC', 'controlsStateIC']
     self.sm = messaging.SubMaster(['lateralDelay', 'vehicleParameters', 'lateralTorqueParameters', 'modelV2', 'selfdriveState',
                                    'extrinsicsCalibration', 'deviceMotion', 'longitudinalPlan', 'lateralManeuverPlan', 'carState', 'carOutput',
@@ -120,6 +120,7 @@ class Controls(ControlsExt):
 
   def state_control(self):
     CS = self.sm['carState']
+    CS_IC = self.sm['carStateIC']
 
     # Update VehicleModel
     lp = self.sm['vehicleParameters']
@@ -197,6 +198,7 @@ class Controls(ControlsExt):
     if self.enable_smooth_steer:
       new_desired_curvature = self.smooth_steer.update(new_desired_curvature)
     if self.CP.steerControlType == car.CarParams.SteerControlType.curvature:
+      self.LaC.set_steering_slightly_pressed(CS_IC.steeringSlightlyPressed)
       # CurvatureD correction routed as additive term on the controller output (not setpoint shift)
       if CC.latActive and self.enable_curvatured and self.sm.all_checks(['lateralCurvatureParameters']):
         correction = self.curvatured.get_correction(self.desired_curvature, CS.vEgo)

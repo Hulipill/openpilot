@@ -12,7 +12,8 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.ui.lib.prime_state import PrimeState
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.common.hardware import HARDWARE, PC
-from openpilot.selfdrive.modeld.helpers import usbgpu_compiled
+from openpilot.common.hardware.usb import TYPEC_CC_ORIENTATION_PATH, get_usb_state, is_chestnut_usb_id, read_int
+from openpilot.selfdrive.modeld.helpers import chestnut_compiled
 
 from openpilot.selfdrive.ui.sunnypilot.ui_state import UIStateSP, DeviceSP
 
@@ -26,6 +27,15 @@ class UIStatus(Enum):
   OVERRIDE = "override"
   LAT_ONLY = "lat_only"
   LONG_ONLY = "long_only"
+
+
+class ChestnutState(Enum):
+  DISCONNECTED = "disconnected"
+  UNCOMPILED = "uncompiled"
+  READY = "ready"
+  LOADING = "loading"
+  ACTIVE = "active"
+  FAILED = "failed"
 
 
 class UIState(UIStateSP):
@@ -70,9 +80,10 @@ class UIState(UIStateSP):
         "carOutput",
         "carControl",
         "vehicleParameters",
-        "testJoystick",
-        "rawAudioData",
-      ] + ic_services + self.sm_services_ext
+         "testJoystick",
+         "rawAudioData",
+         "chestnutState",
+       ] + ic_services + self.sm_services_ext
     )
 
     self.prime_state = PrimeState()
@@ -90,10 +101,15 @@ class UIState(UIStateSP):
     self.always_on_dm: bool = self.params.get_bool("AlwaysOnDM")
     self.experimental_mode: bool = self.params.get_bool("ExperimentalMode")
     self.experimental_mode_confirmed: bool = self.params.get_bool("ExperimentalModeConfirmed")
-    self.usbgpu: bool = False
-    self.usbgpu_compiled: bool = usbgpu_compiled()
-    self.usbgpu_active: bool | None = self.params.get("UsbGpuActive")
-    self.usbgpu_loading: bool = self.params.get_bool("UsbGpuLoading")
+    self.chestnut_present: bool = False
+    self.chestnut_compiled: bool = chestnut_compiled()
+    self.chestnut_active: bool | None = None
+    self.chestnut_loading: bool = False
+    self.usb_connected: bool = False
+    self.usb_connected_ts: float | None = None
+    self.usb_disconnected_ts: float | None = None
+    self.usb_unknown: bool = False
+    self.chestnut_state = ChestnutState.DISCONNECTED
     self.started: bool = False
     self.ignition: bool = False
     self.recording_audio: bool = False
@@ -104,9 +120,8 @@ class UIState(UIStateSP):
     self.CP: car.CarParams | None = None
     self.light_sensor: float = -1.0
 
-    self.dark_mode: bool = False
-    self.onroad_screen_timeout: bool = False
     self.enable_accel_bar: bool = False
+    self.ic_show_egpu_temperatures: bool = False
     self.has_alert: bool = False
     self.has_status_change: bool = False
     self._status_prev: UIStatus = self.status
@@ -128,15 +143,6 @@ class UIState(UIStateSP):
     self._on_body_changed_callbacks.append(callback)
 
   @property
-  def big_model_failed(self) -> bool:
-    # Mirrors the onroad HUD's four-condition check so sidebar and home icons reflect the same failure states
-    return (self.usbgpu_active is False or
-            not self.sm['deviceState'].chestnutPresent or
-            (self.usbgpu_active is True and self.sm.recv_frame['modelV2'] > self.started_frame and
-             not self.sm.alive['modelV2']) or
-            (self.usbgpu_active is None and self.sm.recv_frame['modelV2'] > self.started_frame))
-
-  @property
   def engaged(self) -> bool:
     return self.started and (self.sm["selfdriveState"].enabled or self.sm["selfdriveStateSP"].mads.enabled)
 
@@ -155,6 +161,7 @@ class UIState(UIStateSP):
     self.sm.update(0)
     self._update_state()
     self._update_status()
+    self._update_chestnut_state()
     device.update()
     UIStateSP.update(self)
 
@@ -225,11 +232,34 @@ class UIState(UIStateSP):
         self.status = UIStatus.DISENGAGED
         self.started_frame = self.sm.frame
         self.started_time = time.monotonic()
+        self.chestnut_present = self.sm["deviceState"].chestnutPresent
 
       for callback in self._offroad_transition_callbacks:
         callback()
 
       self._started_prev = self.started
+
+  def _update_chestnut_state(self) -> None:
+    detected = self.sm["deviceState"].chestnutPresent
+    if not self.started:
+      self.chestnut_present = detected
+      self.chestnut_state = (ChestnutState.READY if detected and self.chestnut_compiled else
+                             ChestnutState.UNCOMPILED if detected else ChestnutState.DISCONNECTED)
+      return
+
+    model_seen = self.sm.recv_frame["modelV2"] > self.started_frame
+    if not self.chestnut_present:
+      self.chestnut_state = ChestnutState.DISCONNECTED
+    elif not self.chestnut_compiled:
+      self.chestnut_state = ChestnutState.UNCOMPILED
+    elif self.chestnut_state == ChestnutState.FAILED or not detected or (model_seen and (not self.sm.alive["modelV2"] or not self.sm["modelV2"].big)):
+      self.chestnut_state = ChestnutState.FAILED
+    elif self.chestnut_loading or not model_seen:
+      self.chestnut_state = ChestnutState.LOADING
+    elif self.chestnut_active is False:
+      self.chestnut_state = ChestnutState.FAILED
+    else:
+      self.chestnut_state = ChestnutState.ACTIVE
 
   def update_params(self) -> None:
     # For slower operations
@@ -247,18 +277,32 @@ class UIState(UIStateSP):
     self.always_on_dm = self.params.get_bool("AlwaysOnDM")
     self.experimental_mode = self.params.get_bool("ExperimentalMode")
     self.experimental_mode_confirmed = self.params.get_bool("ExperimentalModeConfirmed")
-    # keep usbgpu UI active until offroad transition when gpu disappears
-    self.usbgpu = self.sm["deviceState"].chestnutPresent or (self.usbgpu and self.started)
-    if not self.usbgpu_compiled:
-      self.usbgpu_compiled = usbgpu_compiled()
-    self.usbgpu_active = self.params.get("UsbGpuActive")
-    self.usbgpu_loading = self.params.get_bool("UsbGpuLoading")
+    if not self.chestnut_compiled:
+      self.chestnut_compiled = chestnut_compiled()
+    self.chestnut_active = self.params.get("ChestnutActive")
+    self.chestnut_loading = self.params.get_bool("ChestnutLoading")
+    now = time.monotonic()
+    if read_int(TYPEC_CC_ORIENTATION_PATH) != 0:
+      self.usb_disconnected_ts = None
+      if not self.usb_connected:
+        self.usb_connected = True
+        self.usb_connected_ts = now
+        self.usb_unknown = False
+      elif self.usb_connected_ts is not None and now - self.usb_connected_ts > 10.:
+        self.usb_unknown = not any(is_chestnut_usb_id(d["vendorId"], d["productId"], True) for d in get_usb_state())
+        self.usb_connected_ts = None
+    elif self.usb_connected:
+      if self.usb_disconnected_ts is None:
+        self.usb_disconnected_ts = now
+      elif now - self.usb_disconnected_ts > PARAM_UPDATE_TIME:
+        self.usb_connected = False
+        self.usb_connected_ts = None
+        self.usb_unknown = False
 
     UIStateSP.update_params(self)
 
-    self.dark_mode = self.params.get_bool("DarkMode")
-    self.onroad_screen_timeout = self.params.get_bool("DisableScreenTimer")
     self.enable_accel_bar = self.params.get_bool("ShowAccelBar")
+    self.ic_show_egpu_temperatures = self.params.get_bool("ICShowEgpuTemperatures")
 
 
 class Device(DeviceSP):
@@ -349,9 +393,6 @@ class Device(DeviceSP):
 
       clipped_brightness = float(np.interp(clipped_brightness, [0, 1], [min_brightness, 100]))
 
-    if ui_state.started and ui_state.dark_mode:
-      clipped_brightness = 1.0
-
     brightness = round(self._brightness_filter.update(clipped_brightness))
 
     if gui_app.sunnypilot_ui():
@@ -384,7 +425,7 @@ class Device(DeviceSP):
         callback()
     self._prev_timed_out = interaction_timeout
 
-    self._set_awake((ui_state.ignition and not ui_state.onroad_screen_timeout) or not interaction_timeout or PC)
+    self._set_awake(ui_state.ignition or not interaction_timeout or PC)
 
   def _set_awake(self, on: bool, _ui_state=None):
     # screensaver holds _awake True, so waking is not a state change
