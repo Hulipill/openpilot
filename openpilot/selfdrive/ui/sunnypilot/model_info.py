@@ -13,7 +13,7 @@ from openpilot.selfdrive.ui.ui_state import ui_state, ChestnutState
 from openpilot.sunnypilot import jetlink_adapter
 from openpilot.sunnypilot.models.fetcher import get_cached_bundles
 from openpilot.sunnypilot.models.helpers import get_active_source, get_selected_bundle, resolve_bundle_by_ref
-from openpilot.sunnypilot.models.model_name import DEFAULT_BIG_MODEL, DEFAULT_MODEL
+from openpilot.sunnypilot.models.model_name import DEFAULT_MODEL
 from openpilot.system.ui.lib.multilang import tr
 
 
@@ -46,11 +46,7 @@ def default_model(source: str) -> str:
   default is its own."""
   if source != 'chestnut':
     return DEFAULT_MODEL
-  # read once: the params thread sets it to None when a chestnut turns up
-  jetlink = ui_state.jetlink
-  if not ui_state.chestnut_present and jetlink is not None and (name := jetlink.default_model):
-    return name
-  return DEFAULT_BIG_MODEL
+  return jetlink_adapter.default_big_model(ui_state.chestnut_present, ui_state.jetlink)
 
 
 def default_model_name(source: str) -> str:

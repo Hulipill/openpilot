@@ -16,7 +16,9 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.common.hardware.hw import Paths
 
 from openpilot.cereal import messaging, custom
+from openpilot.sunnypilot.models.default_bootstrap import carry_over_picks, maybe_apply_default_model
 from openpilot.sunnypilot.models.fetcher import ModelFetcher
+from openpilot.sunnypilot.models.fetcher_zp import ModelFetcherZP
 from openpilot.sunnypilot.models.helpers import (ACTIVE_BUNDLE_KEYS, _bundle_is_valid_locally, get_active_bundle, get_selected_bundle,
                                                   resolve_bundle_by_ref, validate_active_bundles, verify_file)
 
@@ -33,7 +35,7 @@ class ModelManagerSP:
 
   def __init__(self):
     self.params = Params()
-    self.model_fetcher = ModelFetcher(self.params)
+    self.model_fetcher = ModelFetcherZP(self.params)
     self.pm = messaging.PubMaster(["modelManagerSP"])
     self.sm = messaging.SubMaster(["deviceState"])
     self.chestnut_present = False
@@ -257,8 +259,12 @@ class ModelManagerSP:
 
   async def _download_bundle(self, model_bundle: custom.ModelManagerSP.ModelBundle, destination_path: str, source: str) -> None:
     self.selected_bundle = model_bundle
+    # the big model's files are only fetched where a chestnut can run them; see _fetch_big_model_files
     models = [] if source == "chestnut" and not self.chestnut_present else self.selected_bundle.models
     if models:
+      # a bundle with nothing to fetch goes straight to downloaded below: said
+      # to be downloading with no files, it showed a download that never ran,
+      # and the mici panel divided its progress by zero (2026-10-06)
       self.selected_bundle.status = custom.ModelManagerSP.DownloadStatus.downloading
       for model in models:
         model.artifact.downloadProgress.status = custom.ModelManagerSP.DownloadStatus.downloading
@@ -349,8 +355,10 @@ class ModelManagerSP:
         self.chestnut_present = self.sm['deviceState'].chestnutPresent
         self.source_models = {source: self.model_fetcher.get_bundles_for_source(source) for source in ModelFetcher.MODEL_SOURCES}
         self.available_models = self.source_models[ModelFetcher.active_source(self.chestnut_present)]
+        carry_over_picks(self.params, self.source_models)
         validate_active_bundles(self.params, self.source_models)
         self.active_bundle = get_active_bundle(self.params, chestnut=self.chestnut_present)
+        maybe_apply_default_model(self.params, self.source_models["qcom"])
 
         if self.chestnut_present and get_selected_bundle(self.params, "chestnut") is not None and get_selected_bundle(self.params, "qcom") is None:
           if self.params.get("ModelManager_DownloadRef") is None:

@@ -13,10 +13,7 @@ pinned jetlink, with the network mocked.
 from __future__ import annotations
 
 import copy
-import shutil
-import tempfile
 import unittest
-from pathlib import Path
 from unittest import mock
 
 import requests
@@ -29,7 +26,8 @@ from openpilot.common.test import OpenpilotTestCase
 from openpilot.sunnypilot import jetlink_adapter
 from openpilot.sunnypilot.jetlink_adapter import KEYS, MODES
 from openpilot.sunnypilot.models import helpers as model_helpers, manager as manager_module
-from openpilot.sunnypilot.models.fetcher import ModelFetcher, ModelParser
+from openpilot.sunnypilot.models.fetcher import ModelCache, ModelParser
+from openpilot.sunnypilot.models.fetcher_zp import EXTENDED_KEY, ModelFetcherZP
 from openpilot.sunnypilot.models.helpers import REQUIRED_JSON_VERSION, _bundle_needs_reset, resolve_bundle_by_ref
 
 OLD, NEW = 'a' * 40, 'e' * 40
@@ -67,7 +65,7 @@ class JetlinkTest(OpenpilotTestCase):
 class TestBigCatalog(JetlinkTest):
   def merged(self, newer=NEWER):
     probe_result = {'side_effect': newer} if isinstance(newer, Exception) else {'return_value': newer}
-    with mock.patch('jetlink.registry.catalog.fetch_catalogs', **probe_result) as probe:  # type: ignore
+    with mock.patch('jetlink.registry.catalog.fetch_catalogs', **probe_result) as probe:  # ty: ignore[no-matching-overload]
       out = jetlink_adapter.extend_catalog(PINNED)
     return out, probe
 
@@ -76,7 +74,9 @@ class TestBigCatalog(JetlinkTest):
     probe.assert_called_once_with()
     bundles = ModelParser.parse_models(out)
     self.assertEqual([b.ref for b in bundles], [OLD, NEW])
-    picked, source = resolve_bundle_by_ref(NEW, {'chestnut': bundles})  # type: ignore
+    res = resolve_bundle_by_ref(NEW, {'chestnut': bundles})
+    assert res is not None
+    picked, source = res
     self.assertEqual((picked.displayName, source), ('Cinque Terre V4', 'chestnut'))
     # nothing for a chestnut to fetch
     self.assertEqual(list(picked.models), [])
@@ -96,7 +96,7 @@ class TestBigCatalog(JetlinkTest):
     # the model manager's cached copy has the newer model as the merge made it; a
     # probe that fails now must not drop a pick that is only listed there
     last, _ = self.merged()
-    Params().put(KEYS.catalog, {**last, ModelFetcher.EXTENDED_KEY: True}, block=True)
+    Params().put(KEYS.catalog, {**last, EXTENDED_KEY: True}, block=True)
     out, _ = self.merged(newer=OSError('offline'))
     self.assertEqual([b['ref'] for b in out['bundles']], [OLD, NEW])
     # sunnypilot's own entries come from the fetch, never the cache
@@ -134,7 +134,7 @@ class TestFetcherHook(OpenpilotTestCase):
     with mock.patch('openpilot.sunnypilot.models.fetcher.requests.get', return_value=response), \
          mock.patch.object(jetlink_adapter, 'should_extend_catalog', return_value=extends) as asked, \
          mock.patch.object(jetlink_adapter, 'extend_catalog', side_effect=lambda c: c) as hook:
-      ModelFetcher(params)._fetch_and_cache_models(source)
+      ModelFetcherZP(params)._fetch_and_cache_models(source)
     cached = next((c.args[1] for c in params.put.call_args_list if c.args[0] == KEYS.catalog), None)
     return hook, asked, cached
 
@@ -142,12 +142,12 @@ class TestFetcherHook(OpenpilotTestCase):
     hook, asked, cached = self.fetch('chestnut')
     hook.assert_called_once_with(PINNED)
     asked.assert_called_once_with()
-    self.assertIs(cached[ModelFetcher.EXTENDED_KEY], True)
+    self.assertIs(cached[EXTENDED_KEY], True)
 
   def test_beside_a_chestnut_it_is_cached_as_fetched(self):
     hook, _, cached = self.fetch('chestnut', extends=False)
     hook.assert_not_called()
-    self.assertEqual(cached, {**PINNED, ModelFetcher.EXTENDED_KEY: False})
+    self.assertEqual(cached, {**PINNED, EXTENDED_KEY: False})
 
   def test_the_small_model_source_is_not(self):
     hook, asked, _ = self.fetch('qcom')
@@ -161,13 +161,13 @@ class TestCatalogFollowsTheHardware(OpenpilotTestCase):
 
   def setUp(self):
     super().setUp()
-    self.fetcher = ModelFetcher(mock.MagicMock())
+    self.fetcher = ModelFetcherZP(mock.MagicMock())
     self.refetch = mock.patch.object(self.fetcher, '_fetch_and_cache_models', return_value=[]).start()
     self.addCleanup(mock.patch.stopall)
 
   def bundles(self, stamped, extends):
-    cached = {**PINNED, ModelFetcher.EXTENDED_KEY: stamped}
-    with mock.patch.object(self.fetcher.model_caches['chestnut'], 'get', return_value=(cached, False)), \
+    cached = {**PINNED, EXTENDED_KEY: stamped}
+    with mock.patch.object(ModelCache, 'get', return_value=(cached, False)), \
          mock.patch.object(jetlink_adapter, 'should_extend_catalog', return_value=extends):
       self.fetcher.get_bundles_for_source('chestnut')
 
@@ -189,7 +189,7 @@ class TestCatalogFollowsTheHardware(OpenpilotTestCase):
     self.assertEqual(self.refetch.call_count, 2)
 
   def test_the_small_model_source_never_asks(self):
-    with mock.patch.object(self.fetcher.model_caches['qcom'], 'get', return_value=({'bundles': []}, False)), \
+    with mock.patch.object(ModelCache, 'get', return_value=({'bundles': []}, False)), \
          mock.patch.object(jetlink_adapter, 'should_extend_catalog') as extends:
       self.fetcher.get_bundles_for_source('qcom')
     extends.assert_not_called()
@@ -220,19 +220,14 @@ class RefreshTest(JetlinkTest):
     self.params = Params()
     self.offline = False
     self.newer: dict | Exception = LATER
-    warps = Path(tempfile.mkdtemp())
-    self.addCleanup(shutil.rmtree, warps, ignore_errors=True)
+    # the checkout carries the warp for this camera, so readiness is the pick's engine alone
     for patcher in (
       mock.patch('openpilot.sunnypilot.models.fetcher.requests.get', side_effect=self.serve),
       mock.patch('jetlink.registry.catalog.fetch_catalogs', side_effect=self.probe),
       *chestnut(self.CHESTNUT),
-      # a warp built for this camera, so readiness is the pick's engine alone
-      mock.patch.object(jetlink_adapter, 'WARP_DIR', warps),
     ):
       patcher.start()
       self.addCleanup(patcher.stop)
-    op = jetlink_adapter.Adapter()
-    op.warp_path(*op.camera()).touch()
     self.new_process()
     self.addCleanup(model_helpers._LAST_VALIDATED_RAW.clear)
 
@@ -240,7 +235,7 @@ class RefreshTest(JetlinkTest):
     if self.offline:
       raise requests.exceptions.ConnectionError("offline")
     response = mock.MagicMock(status_code=200)
-    response.json.return_value = copy.deepcopy({ModelFetcher.MODEL_URL: SMALL, ModelFetcher.MODEL_URL_CHESTNUT: BIG}[url])
+    response.json.return_value = copy.deepcopy({ModelFetcherZP.MODEL_URL: SMALL, ModelFetcherZP.MODEL_URL_CHESTNUT: BIG}[url])
     return response
 
   def probe(self):
@@ -280,7 +275,9 @@ class RefreshTest(JetlinkTest):
     """Pick a big model as the manager stores it without a chestnut: the catalog's
     entry, files not fetched (ModelManagerSP._download_bundle)."""
     bundles = ModelParser.parse_models(self.params.get(KEYS.catalog))
-    self.params.put(KEYS.big_model, resolve_bundle_by_ref(ref, {"chestnut": bundles})[0].to_dict(), block=True)  # type: ignore
+    res = resolve_bundle_by_ref(ref, {"chestnut": bundles})
+    assert res is not None
+    self.params.put(KEYS.big_model, res[0].to_dict(), block=True)
 
   def marks(self) -> dict:
     """What the owner stats to decide a provisioning run is due."""
@@ -315,7 +312,7 @@ class TestRefreshOnAJetlinkDevice(RefreshTest):
     self.refresh()
     self.assertTrue(all(self.stamps()), self.stamps())
     cached = self.params.get(KEYS.catalog)
-    self.assertIs(cached[ModelFetcher.EXTENDED_KEY], True)
+    self.assertIs(cached[EXTENDED_KEY], True)
     self.assertEqual([b['ref'] for b in cached['bundles']], [V3, V4])
     self.assert_pick_and_readiness_kept()
 
@@ -355,7 +352,7 @@ class TestRefreshOnAJetlinkDevice(RefreshTest):
     self.before = self.marks()
     self.refresh()
     self.assertTrue(all(self.stamps()))
-    self.assertIs(self.params.get(KEYS.catalog)[ModelFetcher.EXTENDED_KEY], True)
+    self.assertIs(self.params.get(KEYS.catalog)[EXTENDED_KEY], True)
     self.assert_pick_and_readiness_kept()
 
 
@@ -367,7 +364,7 @@ class TestRefreshBesideAChestnut(RefreshTest):
     self.tick()
     self.refresh()
     self.assertTrue(all(self.stamps()))
-    self.assertEqual(self.params.get(KEYS.catalog), {**BIG, ModelFetcher.EXTENDED_KEY: False})
+    self.assertEqual(self.params.get(KEYS.catalog), {**BIG, EXTENDED_KEY: False})
 
 
 if __name__ == '__main__':

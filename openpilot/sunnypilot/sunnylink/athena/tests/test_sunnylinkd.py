@@ -4,6 +4,7 @@ Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
 This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
+from unittest.mock import MagicMock, patch
 from openpilot.sunnypilot.sunnylink.athena import sunnylinkd
 from openpilot.common.test import OpenpilotTestCase
 
@@ -58,3 +59,27 @@ class TestSunnylinkdMethods(OpenpilotTestCase):
     assert len(self.saved_params) == 1
     assert self.saved_params[0][0] == "SpeedLimitOffset"
     assert self.saved_params[0][1] == "10"
+
+  def test_getParamsMetadata_default_big_model(self):
+    import base64
+    import gzip
+    import json
+    from openpilot.sunnypilot.models.model_name import DEFAULT_BIG_MODEL
+
+    with patch("openpilot.sunnypilot.sunnylink.athena.sunnylinkd.chestnut_present", return_value=False), \
+         patch("openpilot.sunnypilot.sunnylink.athena.sunnylinkd.jetlink_adapter.status", return_value=None):
+      meta = json.loads(gzip.decompress(base64.b64decode(sunnylinkd.getParamsMetadata())))
+      self.assertEqual(meta["default_big_model"], DEFAULT_BIG_MODEL)
+
+    status_mock = MagicMock()
+    status_mock.default_model = "custom_big_model"
+    with patch("openpilot.sunnypilot.sunnylink.athena.sunnylinkd.chestnut_present", return_value=False), \
+         patch("openpilot.sunnypilot.sunnylink.athena.sunnylinkd.jetlink_adapter.status", return_value=status_mock):
+      meta = json.loads(gzip.decompress(base64.b64decode(sunnylinkd.getParamsMetadata())))
+      self.assertEqual(meta["default_big_model"], "custom_big_model")
+
+    # If chestnut is present, always DEFAULT_BIG_MODEL
+    with patch("openpilot.sunnypilot.sunnylink.athena.sunnylinkd.chestnut_present", return_value=True), \
+         patch("openpilot.sunnypilot.sunnylink.athena.sunnylinkd.jetlink_adapter.status", return_value=status_mock):
+      meta = json.loads(gzip.decompress(base64.b64decode(sunnylinkd.getParamsMetadata())))
+      self.assertEqual(meta["default_big_model"], DEFAULT_BIG_MODEL)

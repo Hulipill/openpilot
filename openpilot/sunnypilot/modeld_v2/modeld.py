@@ -264,8 +264,7 @@ def main(demo=False):
   if CHESTNUT:
     os.environ['HCQDEV_WAIT_TIMEOUT_MS'] = '3000'
   # before going realtime: prepare() starts tinygrad's device thread, which would inherit FIFO 54 on core 7
-  if not CHESTNUT:
-    jetlink_adapter.prepare()
+  jetlink_adapter.prepare(CHESTNUT)
 
   config_realtime_process(7, 54)
 
@@ -323,8 +322,7 @@ def main(demo=False):
   small_model = ModelState(cam_w=vipc_client_main.width, cam_h=vipc_client_main.height, chestnut=False) if model is None or CHESTNUT else None
   if model is None:
     model = small_model
-  if (joined := jetlink_adapter.attach(small_model, vipc_client_main.width, vipc_client_main.height)) is not None:
-    model = joined
+  model = jetlink_adapter.attach(model, small_model, vipc_client_main.width, vipc_client_main.height)
   params.put_bool("ChestnutLoading", False)
   assert model is not None
   cloudlog.warning(f"models loaded in {time.monotonic() - st:.1f}s, modeld starting")
@@ -456,14 +454,7 @@ def main(demo=False):
     if 'lateral_control_params' in model.numpy_inputs:
       inputs['lateral_control_params'] = np.array([v_ego, lat_delay], dtype=np.float32)
 
-    # a model can change which model drives inside run() (jetlink's joining
-    # model counts its handovers); the stall of one is not lag, as for the
-    # fallback below, and nor are the drops of the frame it happens on. The
-    # joining model hands a large model back on this share of dropped frames,
-    # and swaps one in only while nothing is in control
-    model.in_control = jetlink_adapter.in_control(sm)
     model.frame_drop_ratio = frame_drop_ratio
-    handovers = getattr(model, 'handovers', 0)
     mt1 = time.perf_counter()
     try:
       send_chestnut = (chestnut_state is not None and
@@ -482,16 +473,15 @@ def main(demo=False):
       model_output = None
     mt2 = time.perf_counter()
     model_execution_time = mt2 - mt1
-    if getattr(model, 'handovers', 0) != handovers:
-      run_count = 0
-      frame_drop_ratio = 0.
+    if jetlink_adapter.handed_over(model):
+      run_count, frame_drop_ratio = 0, 0.
 
     if model_output is not None:
       modelv2_send = messaging.new_message('modelV2')
       drivingdata_send = messaging.new_message('drivingModelData')
       posenet_send = messaging.new_message('cameraOdometry')
       mdv2sp_send = messaging.new_message('modelDataV2SP')
-      mdv2sp_send.modelDataV2SP.acceleratorState = getattr(model, 'big_model_state', 'none')
+      mdv2sp_send.modelDataV2SP.acceleratorState = jetlink_adapter.state(model)
 
       action = model.get_action_from_model(model_output, prev_action, lat_action_t, long_action_t, v_ego)
       prev_action = action
