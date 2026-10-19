@@ -28,10 +28,10 @@ LAUNCH_MOVING_SPEED = 1.2
 LAUNCH_MAX_ACCEL = 1.5
 
 
-def get_cruise_accel(v_cruise, v_ego, a_cruise_prev, dt):
+def get_cruise_accel(v_cruise, v_ego, a_cruise_prev, a_target_prev, dt):
   target_accel = np.clip(v_cruise - v_ego, A_CRUISE_MIN, ACCEL_MAX)
   j_cruise = np.interp(v_ego, J_CRUISE_BP, J_CRUISE_VALS)
-  target_accel = float(np.clip(target_accel, a_cruise_prev - j_cruise * dt, a_cruise_prev + j_cruise * dt))
+  target_accel = float(np.clip(target_accel, min(a_cruise_prev, a_target_prev) - j_cruise * dt, a_cruise_prev + j_cruise * dt))
 
   return target_accel
 
@@ -132,7 +132,7 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
         output_a_target_e2e = max(output_a_target_e2e, min(a_launch, a_launch_max))
         output_should_stop_e2e = False
 
-    self.a_cruise = get_cruise_accel(v_cruise, v_ego, self.a_cruise, self.dt)
+    self.a_cruise = get_cruise_accel(v_cruise, v_ego, self.a_cruise, self.output_a_target, self.dt)
     cruise_should_stop = should_stop(v_ego, self.a_cruise)
 
     output_a_target_e2e = self.accel_boost.update(sm, output_a_target_e2e, output_a_target_mpc, self.a_cruise)
