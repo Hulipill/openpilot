@@ -9,7 +9,7 @@ from enum import IntEnum
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.cruise_sub_layouts.speed_limit_settings import SpeedLimitSettingsLayout
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.multilang import tr, tr_noop
-from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp, option_item_sp, simple_button_item_sp, multiple_button_item_sp
+from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp, option_item_sp, simple_button_item_sp
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.scroller_tici import Scroller
 
@@ -46,6 +46,22 @@ class CruiseLayout(Widget):
       title=tr("Intelligent Cruise Button Management (ICBM) (Alpha)"),
       description="",
       param="IntelligentCruiseButtonManagement")
+
+    self.accel_boost_map_mode_toggle = toggle_item_sp(
+      title=tr("Acceleration Boost - Map Mode"),
+      description=tr("Only enable Acceleration Boost on roads with a speed limit at or above the configured minimum."),
+      param="AccelBoostMapMode",
+    )
+
+    self.accel_boost_map_min_speed_option = option_item_sp(
+      param="AccelBoostMapMinSpeed",
+      title=lambda: tr("Acceleration Boost Map - Min Speed"),
+      min_value=20,
+      max_value=120,
+      value_change_step=5,
+      description=lambda: tr("Minimum road speed limit to allow Acceleration Boost in Map mode."),
+      label_callback=lambda speed: f'{speed} {"km/h" if ui_state.is_metric else "mph"}',
+    )
 
     self.scc_v_toggle = toggle_item_sp(
       title=tr("Smart Cruise Control - Vision"),
@@ -84,6 +100,8 @@ class CruiseLayout(Widget):
 
     items = [
       self.icbm_toggle,
+      self.accel_boost_map_mode_toggle,
+      self.accel_boost_map_min_speed_option,
       self.scc_v_toggle,
       self.scc_m_toggle,
       self.custom_acc_toggle,
@@ -104,6 +122,7 @@ class CruiseLayout(Widget):
     self._scroller.show_event()
     self.icbm_toggle.show_description(True)
     self.custom_acc_toggle.show_description(True)
+    self.accel_boost_map_mode_toggle.show_description(True)
 
   def _set_current_panel(self, panel: PanelType):
     self._current_panel = panel
@@ -116,6 +135,8 @@ class CruiseLayout(Widget):
     if ui_state.CP is not None and ui_state.CP_SP is not None:
       has_icbm = ui_state.has_icbm
       has_long = ui_state.has_longitudinal_control
+
+      self.accel_boost_map_min_speed_option.set_visible(ui_state.params.get_bool("AccelBoostMapMode"))
 
       if ui_state.CP_SP.intelligentCruiseButtonManagementAvailable and not has_long:
         self.icbm_toggle.action_item.set_enabled(ui_state.is_offroad())
@@ -138,13 +159,19 @@ class CruiseLayout(Widget):
 
       if has_long or has_icbm:
         self.custom_acc_toggle.action_item.set_enabled(((has_long and not ui_state.CP.pcmCruise) or has_icbm) and ui_state.is_offroad())
+        self.accel_boost_map_mode_toggle.action_item.set_enabled(has_long)
+        self.accel_boost_map_min_speed_option.action_item.set_enabled(has_long)
         self.scc_v_toggle.action_item.set_enabled(True)
         self.scc_m_toggle.action_item.set_enabled(True)
       else:
         ui_state.params.remove("CustomAccIncrementsEnabled")
+        ui_state.params.remove("AccelBoostMapMode")
+        ui_state.params.remove("AccelBoostMapMinSpeed")
         ui_state.params.remove("SmartCruiseControlVision")
         ui_state.params.remove("SmartCruiseControlMap")
         self.custom_acc_toggle.action_item.set_enabled(False)
+        self.accel_boost_map_mode_toggle.action_item.set_enabled(False)
+        self.accel_boost_map_min_speed_option.action_item.set_enabled(False)
         self.scc_v_toggle.action_item.set_enabled(False)
         self.scc_m_toggle.action_item.set_enabled(False)
 

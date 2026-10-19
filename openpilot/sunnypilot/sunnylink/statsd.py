@@ -50,6 +50,8 @@ def sp_stats(end_event):
 
   param_keys = [
     'SunnylinkEnabled',
+    'AccelBoostMapMode',
+    'AccelBoostMapMinSpeed',
     'AutoLaneChangeBsmDelay',
     'AutoLaneChangeTimer',
     'CarPlatformBundle',

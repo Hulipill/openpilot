@@ -11,6 +11,25 @@ sections:
   title: ''
   description: ''
   items:
+  - key: AccelBoostMapMode
+    widget: toggle
+    title: Acceleration Boost - Map Mode
+    description: Only enable Acceleration Boost on roads with a speed limit at or above the configured minimum.
+    enablement:
+    - $ref: '#/macros/longitudinal'
+  - key: AccelBoostMapMinSpeed
+    widget: option
+    title: Acceleration Boost Map - Min Speed
+    description: Minimum road speed limit to allow Acceleration Boost in Map mode.
+    min: 20
+    max: 120
+    step: 5
+    visibility:
+    - type: param
+      key: AccelBoostMapMode
+      equals: true
+    enablement:
+    - $ref: '#/macros/longitudinal'
   - key: DisengageOnAccelerator
     widget: toggle
     title: Disengage Cruise on Accelerator Pedal
