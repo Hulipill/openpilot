@@ -4,26 +4,29 @@ Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
 This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
-import pytest
+from unittest.mock import MagicMock, patch
 
-from openpilot.sunnypilot.sunnylink.athena import sunnylinkd
 from openpilot.common.test import OpenpilotTestCase
+from openpilot.sunnypilot.sunnylink.athena import sunnylinkd
 
 
-class TestSunnylinkdMethods:
-  @pytest.fixture(autouse=True)
-  def setup(self, mocker):
+class TestSunnylinkdMethods(OpenpilotTestCase):
+  def setUp(self):
     self.saved_params = []
 
     def mock_save_param(key, value, compression=False):
       self.saved_params.append((key, value, compression))
 
-    mocker.patch.object(sunnylinkd, 'save_param_from_base64_encoded_string', mock_save_param)
+    patcher1 = patch.object(sunnylinkd, 'save_param_from_base64_encoded_string', side_effect=mock_save_param)
+    patcher1.start()
+    self.addCleanup(patcher1.stop)
 
     # Mock params with IsEngaged=False and SunnylinkAllowSensitiveWrite=False by default
-    self.mock_params = mocker.MagicMock()
+    self.mock_params = MagicMock()
     self.mock_params.get_bool.return_value = False
-    mocker.patch.object(sunnylinkd, 'params', self.mock_params)
+    patcher2 = patch.object(sunnylinkd, 'params', self.mock_params)
+    patcher2.start()
+    self.addCleanup(patcher2.stop)
 
   def test_saveParams_always_blocked(self):
     blocked_params = {
