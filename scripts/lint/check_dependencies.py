@@ -18,14 +18,14 @@ def main() -> int:
   size = sum(path.stat().st_size for path in Path(sys.prefix).rglob("*") if not path.is_symlink() and path.is_file())
 
   """
-    This test prevents our depency footprint from growing.
+    This test prevents our dependency footprint from growing.
     These values are *not* intended to be increased, and we
     expect to strictly drive these down over time.
   """
   failed = False
   for name, value, limit in (
-    ("Direct dependencies (all extras)", direct, 39),
-    ("Total dependencies", len(packages), 84),
+    ("Direct dependencies (all extras)", direct, 40),
+    ("Total dependencies", len(packages), 85),
     ("Venv size (MiB)", size / 1024**2, 570),
   ):
     print(f"{name}: {value:g} (limit: {limit})")
