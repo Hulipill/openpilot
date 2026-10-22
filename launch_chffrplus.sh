@@ -75,7 +75,7 @@ function launch {
   export PYTHONPATH="$PWD"
 
   # submodule package symlinks for PYTHONPATH imports on device.
-  # on PC these come from editable installs via pyproject.toml / uv.
+  ln -sfn jetlink_repo/jetlink jetlink
   ln -sfn msgq_repo/msgq msgq
   ln -sfn opendbc_repo/opendbc opendbc
   ln -sfn rednose_repo/rednose rednose
@@ -84,6 +84,8 @@ function launch {
 
   # hardware specific init
   if [ -f /AGNOS ]; then
+    # with Jetlink on, draw nothing from its USB-C port from boot (docs/porting.md in jetlink)
+    sudo -n bash jetlink/comma/jetlink-root.sh boot /data/params/d/JetlinkLink &
     agnos_init
   fi
 
