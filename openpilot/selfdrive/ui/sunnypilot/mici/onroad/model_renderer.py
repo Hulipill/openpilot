@@ -5,7 +5,8 @@ This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
 import numpy as np
-from openpilot.cereal import custom
+import pyray as rl
+
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.selfdrive.ui.sunnypilot.onroad.rainbow_path import RainbowPath
 from openpilot.selfdrive.ui.sunnypilot.ui_state import MADSState
