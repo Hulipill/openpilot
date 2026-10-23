@@ -60,8 +60,18 @@ def wait_for_chestnut(timeout: float = 10.) -> None:
       raise TimeoutError("chestnut did not enumerate")
     time.sleep(0.1)
 
+LFS_POINTER = b'version https://git-lfs.github.com/spec/v1'
+
+
+def is_lfs_pointer(path: Path) -> bool:
+  try:
+    with open(path, 'rb') as f:
+      return f.read(len(LFS_POINTER)) == LFS_POINTER
+  except OSError:
+    return False
+
+
 def chestnut_compiled() -> bool:
-  from openpilot.sunnypilot.models.big_model_source import is_lfs_pointer
   path = modeld_pkl_path(chestnut=True)
   return path.is_file() and not is_lfs_pointer(path) and all(
     (MODELS_DIR / f'big_driving_warp_{size}_tinygrad.pkl').is_file() for size in ('1344x760', '1928x1208'))
