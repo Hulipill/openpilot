@@ -4,8 +4,23 @@ Copyright (c) 2026-, Zeph Leggett.
 This file is part of zoompilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 
-Jetlink adapter for sunnypilot: stock openpilot behavior over jetlink's
-cross-fork API, with sunnypilot's MADS, modeld_v2 and model manager.
+jetlink on this fork: the adapter jetlink runs over, and the hooks manager,
+modeld, hardwared, selfdrived, the model manager and the UI call.
+
+jetlink (the jetlink_repo submodule) runs the large driving model on an
+attached Jetson, Mac or iPhone. Its stock adapter (jetlink.openpilot.stock)
+knows stock openpilot's paths; Adapter below is that with this fork's param
+names, its modeld_v2 and MADS. The hooks (jetlink.openpilot.hooks) never raise
+and answer as if the link were off when jetlink is not checked out, or speaks
+another API.
+
+comma's chestnut board is not jetlink's business: modeld, hardwared and the
+UI handle it natively, and jetlink keeps the link off while one is fitted.
+
+manager imports this module to build the process list, and runs it as
+jetlinkd, the resident gadget owner, which stays at about 10 MB for the whole
+drive. So the top level is the standard library only; everything else is
+imported where it is used. tests/test_adapter.py holds the line.
 """
 from __future__ import annotations
 
@@ -51,13 +66,21 @@ def _params_dir() -> Path:
   return Path(root) / os.environ.get('OPENPILOT_PREFIX', 'd')
 
 
-def _link_on() -> bool:
+def link_on() -> bool:
   """Is the Jetlink setting on? As jetlink reads it, a file, so that a jetlink
   this build cannot use tells only someone who turned the link on."""
   try:
     return 0 < int((_params_dir() / KEYS.link).read_bytes()) < len(MODES)
   except (OSError, ValueError):
     return False
+
+
+def chestnut_cable() -> bool:
+  """A cable on the port, for modeld's chestnut check. A Jetson or an iPhone
+  on the port is a cable too, so it counts only while Jetlink is off (jetlink
+  docs/porting.md)."""
+  from openpilot.common.hardware.usb import cable_connected
+  return cable_connected() and not link_on()
 
 
 @functools.cache
@@ -71,9 +94,6 @@ def _adapter_class():
     KEYS = Keys(**KEYS._asdict())
     # MADS's state rides on carControlSP
     IN_CONTROL_SERVICES = ('carState', 'carControl', 'carControlSP')
-    # modeld_tinygrad's warp, which every checkout carries (LFS); stock modeld
-    # loads the same compile from its own models dir, which only scons fills
-    WARP_DIR = 'openpilot/sunnypilot/modeld_v2/models'
 
     @property
     def catalog_selector(self) -> int:
@@ -151,7 +171,7 @@ def _guard():
   except Exception as e:
     return _unusable(f"jetlink failed to load: {type(e).__name__}: {e}", e)
   try:
-    return Hooks(API, adapter, link_on=_link_on, log=_cloudlog)
+    return Hooks(API, adapter, link_on=link_on, log=_cloudlog)
   except Exception as e:
     return _unusable(str(e), e)   # another API, which it names
 
@@ -185,7 +205,7 @@ class _Off:
     self.why = why
 
   def reason(self) -> str | None:
-    return self.why if self.why and _link_on() else None
+    return self.why if self.why and link_on() else None
 
   def __getattr__(self, name: str):
     if name not in self.ANSWERS:
